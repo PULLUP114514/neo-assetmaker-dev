@@ -364,17 +364,79 @@ class MainWindow(QMainWindow):
         self.config_container = QWidget()
         self.config_layout = QVBoxLayout(self.config_container)
 
-        # 添加设置模式切换按钮
-        from qfluentwidgets import SegmentedWidget
-        self.settings_mode_switch = SegmentedWidget()
-        self.settings_mode_switch.addItem("basic", "基础设置")
-        self.settings_mode_switch.addItem("advanced", "高级设置")
-        self.settings_mode_switch.setCurrentItem("basic")
-        self.settings_mode_switch.setFixedHeight(40)
-        self.settings_mode_switch.setStyleSheet("margin: 10px;")
-        self.settings_mode_switch.currentItemChanged.connect(
-            self._on_settings_mode_changed)
-        self.config_layout.addWidget(self.settings_mode_switch)
+        # 工具栏行：操作菜单 + 设置模式下拉框
+        from qfluentwidgets import (
+            ComboBox as FluentComboBox,
+            DropDownPushButton, RoundMenu, Action
+        )
+
+        toolbar_layout = QHBoxLayout()
+        toolbar_layout.setContentsMargins(10, 10, 10, 4)
+        toolbar_layout.setSpacing(8)
+
+        # 操作下拉按钮（左侧）
+        self.btn_operations = DropDownPushButton(FluentIcon.MENU, "操作")
+        self.btn_operations.setFixedHeight(34)
+
+        operations_menu = RoundMenu(parent=self)
+
+        # 文件操作
+        operations_menu.addAction(
+            Action(FluentIcon.DOCUMENT, "新建项目\tCtrl+N",
+                   triggered=self._on_new_project))
+        operations_menu.addAction(
+            Action(FluentIcon.FOLDER, "打开项目\tCtrl+O",
+                   triggered=self._on_open_project))
+        operations_menu.addAction(
+            Action(FluentIcon.SAVE, "保存\tCtrl+S",
+                   triggered=self._on_save_project))
+        operations_menu.addAction(
+            Action(FluentIcon.SAVE_AS, "另存为\tCtrl+Shift+S",
+                   triggered=self._on_save_as))
+
+        operations_menu.addSeparator()
+
+        # 编辑操作
+        self.menu_action_undo = Action(
+            FluentIcon.RETURN, "撤销\tCtrl+Z",
+            triggered=self._on_undo)
+        self.menu_action_undo.setEnabled(False)
+        operations_menu.addAction(self.menu_action_undo)
+
+        self.menu_action_redo = Action(
+            FluentIcon.RIGHT_ARROW, "重做\tCtrl+Shift+Z",
+            triggered=self._on_redo)
+        self.menu_action_redo.setEnabled(False)
+        operations_menu.addAction(self.menu_action_redo)
+
+        operations_menu.addSeparator()
+
+        # 帮助
+        operations_menu.addAction(
+            Action(FluentIcon.HELP, "快捷键帮助\tF1",
+                   triggered=self._on_shortcuts))
+
+        operations_menu.addSeparator()
+
+        # 退出
+        operations_menu.addAction(
+            Action(FluentIcon.POWER_BUTTON, "退出\tCtrl+Q",
+                   triggered=self.close))
+
+        self.btn_operations.setMenu(operations_menu)
+        toolbar_layout.addWidget(self.btn_operations)
+
+        # 设置模式下拉框（右侧）
+        self.settings_mode_combo = FluentComboBox()
+        self.settings_mode_combo.addItem("基础设置", "basic")
+        self.settings_mode_combo.addItem("高级设置", "advanced")
+        self.settings_mode_combo.setFixedHeight(34)
+        self.settings_mode_combo.currentIndexChanged.connect(
+            self._on_settings_mode_combo_changed)
+        toolbar_layout.addWidget(self.settings_mode_combo)
+
+        toolbar_layout.addStretch()
+        self.config_layout.addLayout(toolbar_layout)
 
         # 高级配置面板
         self.advanced_config_panel = ConfigPanel()
@@ -1460,6 +1522,8 @@ class MainWindow(QMainWindow):
         # 更新按钮状态
         self.action_undo.setEnabled(len(self._undo_stack) > 0)
         self.action_redo.setEnabled(len(self._redo_stack) > 0)
+        self.menu_action_undo.setEnabled(len(self._undo_stack) > 0)
+        self.menu_action_redo.setEnabled(len(self._redo_stack) > 0)
 
         self.status_bar.showMessage("已撤销", 2000)
 
@@ -1483,6 +1547,8 @@ class MainWindow(QMainWindow):
         # 更新按钮状态
         self.action_undo.setEnabled(len(self._undo_stack) > 0)
         self.action_redo.setEnabled(len(self._redo_stack) > 0)
+        self.menu_action_undo.setEnabled(len(self._undo_stack) > 0)
+        self.menu_action_redo.setEnabled(len(self._redo_stack) > 0)
 
         self.status_bar.showMessage("已重做", 2000)
 
@@ -1504,6 +1570,8 @@ class MainWindow(QMainWindow):
         # 更新按钮状态
         self.action_undo.setEnabled(len(self._undo_stack) > 0)
         self.action_redo.setEnabled(False)
+        self.menu_action_undo.setEnabled(len(self._undo_stack) > 0)
+        self.menu_action_redo.setEnabled(False)
 
     def _update_ui_from_config(self):
         """从配置更新UI"""
@@ -1719,6 +1787,11 @@ class MainWindow(QMainWindow):
         self._about_widget.setVisible(True)
 
         self.status_bar.showMessage("项目介绍")
+
+    def _on_settings_mode_combo_changed(self, index: int):
+        """下拉框切换设置模式"""
+        mode = self.settings_mode_combo.currentData()
+        self._on_settings_mode_changed(mode)
 
     def _on_settings_mode_changed(self, mode):
         """设置模式切换"""
