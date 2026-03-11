@@ -202,23 +202,6 @@ def run_cxfreeze(skip_flasher=False):
 
     from cx_Freeze import setup, Executable
 
-    # 诊断：包装 _load_module 以暴露被 _internal_import_module (finder.py:361-364) 吞掉的真实错误
-    # TODO: 确认 CI 构建通过后移除此诊断代码
-    import cx_Freeze.finder as _finder_mod
-    _orig_load = _finder_mod.ModuleFinder._load_module
-
-    def _debug_load_module(self, name, path, deferred_imports, parent=None):
-        try:
-            result = _orig_load(self, name, path, deferred_imports, parent)
-            if result is None and name.startswith(("gui.", "core.", "config.", "utils.", "_mext.")):
-                print(f"  [DIAG] _load_module({name!r}, path={path}) -> None (spec not found)")
-            return result
-        except ImportError as e:
-            print(f"  [DIAG] _load_module({name!r}) raised ImportError: {e}")
-            raise
-
-    _finder_mod.ModuleFinder._load_module = _debug_load_module
-
     site_packages = get_site_packages()
 
     packages = [

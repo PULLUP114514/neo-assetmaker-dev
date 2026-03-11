@@ -175,7 +175,7 @@ class MainWindow(QMainWindow):
         header_layout.setSpacing(24)
 
         # Logo
-        logo_label = QLabel("AK")
+        logo_label = QLabel("PRTS")
         logo_label.setStyleSheet("""
             QLabel {
                 background-color: white;
@@ -4069,8 +4069,7 @@ class MainWindow(QMainWindow):
                 # 更新截取帧编辑页面的图片
                 self.frame_capture_preview.load_static_image_from_array(frame)
                 logger.info(
-                    f"更新截取帧编辑页面，帧: {
-                        source_preview.current_frame_index}")
+                    f"更新截取帧编辑页面，帧: {source_preview.current_frame_index}")
 
     def _on_preview_tab_changed(self, index: int):
         """预览标签页切换"""
@@ -4125,8 +4124,7 @@ class MainWindow(QMainWindow):
         # 更新存储
         self._intro_in_out = (0, total_frames - 1)
         self.status_bar.showMessage(
-            f"入场视频已加载: {total_frames} 帧, {
-                fps:.1f} FPS")
+            f"入场视频已加载: {total_frames} 帧, {fps:.1f} FPS")
 
     def _on_intro_frame_changed(self, frame: int):
         """入场视频帧变更"""
