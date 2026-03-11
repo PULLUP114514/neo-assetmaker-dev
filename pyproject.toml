@@ -27,6 +27,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "cx-Freeze>=7.0.0,<8.0.0",
+    "tomli>=2.0; python_version < '3.11'",
 ]
 
 [build-system]

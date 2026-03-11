@@ -12,9 +12,24 @@ import importlib.util
 sys.setrecursionlimit(10000)
 
 PROJECT_NAME = "ArknightsPassMaker"
-VERSION = "2.0.0"
 MAIN_SCRIPT = "main.py"
 ICON_FILE = "resources/icons/favicon.ico"
+
+
+def get_version() -> str:
+    """从 pyproject.toml 读取版本号（单一来源）
+
+    参考: cx_Freeze 在 _pyproject.py:7-10 使用相同的 tomllib/tomli fallback 模式
+    """
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "pyproject.toml"), "rb") as f:
+        return tomllib.load(f)["project"]["version"]
+
+
+VERSION = get_version()
 BUILD_DIR = PROJECT_NAME
 DIST_DIR = "dist"
 ISS_FILE = "installer.iss"
@@ -30,7 +45,12 @@ def parse_args():
 
 
 def get_site_packages():
-    return os.path.join(sys.prefix, "Lib", "site-packages")
+    """获取 site-packages 路径（跨平台）
+
+    参考: https://docs.python.org/3/library/sysconfig.html#sysconfig.get_path
+    """
+    import sysconfig
+    return sysconfig.get_path('purelib')
 
 
 def download_inno_setup():
@@ -186,7 +206,10 @@ def run_cxfreeze(skip_flasher=False):
         "PySide6", "PySide6.QtCore", "PySide6.QtGui", "PySide6.QtWidgets",
     ]
 
-    include_files = [("resources", "resources")]
+    include_files = [
+        ("resources", "resources"),
+        ("resources/class_icons", "class_icons"),  # 运行时通过 class_icons/ 相对路径访问
+    ]
     if os.path.exists("ffmpeg.exe"):
         include_files.append(("ffmpeg.exe", "ffmpeg.exe"))
     if os.path.exists("ffprobe.exe"):
@@ -246,9 +269,14 @@ def run_cxfreeze(skip_flasher=False):
 
     # Windows 上使用 "gui" base 避免出现控制台窗口（cx_Freeze 7.0+ 用 "gui" 替代了旧的 "Win32GUI"）
     base = "gui" if sys.platform == "win32" else None
-    original_argv = sys.argv
-    sys.argv = [sys.argv[0], "build"]
 
+    print(f"\n  Version: {VERSION}")
+    print(f"  Packages ({len(packages)}): {', '.join(packages)}")
+    print(f"  Include files ({len(include_files)}):")
+    for src, dst in include_files:
+        print(f"    {src} -> {dst}")
+
+    # 使用 script_args 替代 sys.argv hack（参考 cx_Freeze cli.py:251 使用相同方式）
     try:
         setup(
             name=PROJECT_NAME,
@@ -261,6 +289,7 @@ def run_cxfreeze(skip_flasher=False):
                 target_name=f"{PROJECT_NAME}.exe",
                 icon=ICON_FILE if os.path.exists(ICON_FILE) else None,
             )],
+            script_args=["build"],
         )
         license_file = os.path.join(BUILD_DIR, "frozen_application_license.txt")
         if os.path.exists(license_file):
@@ -269,20 +298,6 @@ def run_cxfreeze(skip_flasher=False):
     except Exception as e:
         print(f"Build failed: {e}")
         return False
-    finally:
-        sys.argv = original_argv
-
-
-def copy_class_icons():
-    """复制职业图标到构建根目录"""
-    print("Copying class icons...")
-    src = os.path.join("resources", "class_icons")
-    dst = os.path.join(BUILD_DIR, "class_icons")
-    if os.path.exists(src):
-        if os.path.exists(dst):
-            shutil.rmtree(dst)
-        shutil.copytree(src, dst)
-        print(f"  {src} -> {dst}")
 
 
 def create_installer():
@@ -344,7 +359,6 @@ def main():
         sys.exit(1)
 
     print(f"\ncx_Freeze done: {BUILD_DIR}/")
-    copy_class_icons()
 
     if not args.no_installer:
         if create_installer():

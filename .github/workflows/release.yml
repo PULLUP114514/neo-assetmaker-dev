@@ -74,8 +74,8 @@ jobs:
   build-and-release:
     needs: check-version
     if: |
-      (needs.check-version.outputs.version_changed == 'true' && needs.check-version.outputs.tag_exists == 'false' && needs.check-version.outputs.version != '') ||
-      (github.event_name == 'workflow_dispatch' && inputs.force_release && needs.check-version.outputs.version != '')
+      (needs.check-version.outputs.version_changed == 'true' && needs.check-version.outputs.tag_exists == 'false') ||
+      (github.event_name == 'workflow_dispatch' && inputs.force_release)
     runs-on: windows-latest
     timeout-minutes: 90
 
@@ -90,11 +90,7 @@ jobs:
           $version = "${{ needs.check-version.outputs.version }}"
           Write-Host "Syncing version to $version"
 
-          # Update build.py
-          $buildPy = Get-Content build.py -Raw
-          $buildPy = $buildPy -replace 'VERSION = "[^"]+"', "VERSION = `"$version`""
-          Set-Content build.py $buildPy -NoNewline
-          Write-Host "Updated build.py"
+          # build.py 已从 pyproject.toml 动态读取版本，无需更新
 
           # Update installer.iss
           $installerIss = Get-Content installer.iss -Raw
@@ -178,9 +174,7 @@ jobs:
           uv sync --group dev
           uv run python -c "import PyQt6; print(f'PyQt6 installed at: {PyQt6.__file__}')"
 
-      - name: Set PYTHONPATH
-        run: echo "PYTHONPATH=$env:GITHUB_WORKSPACE" >> $env:GITHUB_ENV
-        shell: pwsh
+      # build.py 已自行处理 sys.path，无需额外设置 PYTHONPATH
 
       - name: Cache FFmpeg
         id: cache-ffmpeg
@@ -212,7 +206,7 @@ jobs:
       - name: Build with cx_Freeze and Inno Setup
         run: uv run python build.py
         env:
-          PYTHONPATH: ${{ github.workspace }}
+          # qfluentwidgets 等第三方库触发的 SyntaxWarning
           PYTHONWARNINGS: "ignore::SyntaxWarning"
 
       - name: Verify build output
