@@ -11,15 +11,17 @@ from typing import Any, Optional
 from qfluentwidgets import (
     BodyLabel,
     CaptionLabel,
-    CardWidget,
+    ElevatedCardWidget,
+    FluentIcon,
     ImageLabel,
     PillPushButton,
-    PrimaryToolButton,
+    ToolButton,
     ToolTipFilter,
     ToolTipPosition,
+    isDarkTheme,
 )
 from qtpy.QtCore import Qt, Signal
-from qtpy.QtGui import QPixmap
+from qtpy.QtGui import QColor, QPixmap
 from qtpy.QtWidgets import (
     QHBoxLayout,
     QVBoxLayout,
@@ -27,10 +29,11 @@ from qtpy.QtWidgets import (
 )
 
 from _mext.core.constants import MATERIAL_CARD_HEIGHT, MATERIAL_CARD_WIDTH
+from _mext.ui.styles import CARD_BORDER_RADIUS, COLOR_PLACEHOLDER_BG
 from _mext.models.material import Material
 
 
-class MaterialCard(CardWidget):
+class MaterialCard(ElevatedCardWidget):
     """Card widget showing a material's preview, metadata, and actions.
 
     Signals
@@ -67,7 +70,7 @@ class MaterialCard(CardWidget):
         # Preview image
         self._image_label = ImageLabel(self)
         self._image_label.setFixedSize(MATERIAL_CARD_WIDTH, 140)
-        self._image_label.setBorderRadius(4, 4, 0, 0)
+        self._image_label.setBorderRadius(CARD_BORDER_RADIUS, CARD_BORDER_RADIUS, 0, 0)
         layout.addWidget(self._image_label)
 
         # Text content area
@@ -112,9 +115,8 @@ class MaterialCard(CardWidget):
         bottom_layout.addWidget(self._rating_label)
         bottom_layout.addStretch()
 
-        self._download_btn = PrimaryToolButton(self)
+        self._download_btn = ToolButton(FluentIcon.DOWNLOAD, self)
         self._download_btn.setFixedSize(32, 32)
-        self._download_btn.setText("下载")
         self._download_btn.installEventFilter(
             ToolTipFilter(self._download_btn, showDelay=300, position=ToolTipPosition.TOP)
         )
@@ -143,9 +145,10 @@ class MaterialCard(CardWidget):
         if self._material.preview_image_path:
             self._image_label.setToolTip("预览加载中...")
         else:
-            # Set a placeholder color
+            # Theme-aware placeholder instead of hardcoded lightGray
             placeholder = QPixmap(MATERIAL_CARD_WIDTH, 140)
-            placeholder.fill(Qt.GlobalColor.lightGray)
+            bg_hex = COLOR_PLACEHOLDER_BG[1] if isDarkTheme() else COLOR_PLACEHOLDER_BG[0]
+            placeholder.fill(QColor(bg_hex))
             self._image_label.setPixmap(placeholder)
 
     def mouseReleaseEvent(self, event: Any) -> None:  # noqa: N802

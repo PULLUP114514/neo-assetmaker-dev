@@ -12,8 +12,8 @@ from qfluentwidgets import (
     BodyLabel,
     CaptionLabel,
     CardWidget,
+    FluentIcon,
     ProgressBar,
-    PushButton,
     ToolButton,
     setCustomStyleSheet,
 )
@@ -116,30 +116,27 @@ class DownloadProgressWidget(CardWidget):
         button_row = QHBoxLayout()
         button_row.setSpacing(4)
 
-        self._pause_btn = ToolButton(self)
-        self._pause_btn.setText("||")
+        self._pause_btn = ToolButton(FluentIcon.PAUSE_BOLD, self)
         self._pause_btn.setFixedSize(28, 28)
         self._pause_btn.setToolTip("暂停")
         self._pause_btn.clicked.connect(self.pause_clicked.emit)
         button_row.addWidget(self._pause_btn)
 
-        self._resume_btn = ToolButton(self)
-        self._resume_btn.setText(">")
+        self._resume_btn = ToolButton(FluentIcon.PLAY_SOLID, self)
         self._resume_btn.setFixedSize(28, 28)
         self._resume_btn.setToolTip("继续")
         self._resume_btn.clicked.connect(self.resume_clicked.emit)
         self._resume_btn.setVisible(False)
         button_row.addWidget(self._resume_btn)
 
-        self._cancel_btn = ToolButton(self)
-        self._cancel_btn.setText("X")
+        self._cancel_btn = ToolButton(FluentIcon.CANCEL_MEDIUM, self)
         self._cancel_btn.setFixedSize(28, 28)
         self._cancel_btn.setToolTip("取消")
         self._cancel_btn.clicked.connect(self.cancel_clicked.emit)
         button_row.addWidget(self._cancel_btn)
 
-        self._open_btn = PushButton("Open", self)
-        self._open_btn.setFixedHeight(28)
+        self._open_btn = ToolButton(FluentIcon.FOLDER, self)
+        self._open_btn.setFixedSize(28, 28)
         self._open_btn.setToolTip("打开文件位置")
         self._open_btn.clicked.connect(self.open_clicked.emit)
         self._open_btn.setVisible(False)

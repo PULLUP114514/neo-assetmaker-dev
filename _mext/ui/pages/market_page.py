@@ -32,6 +32,12 @@ from _mext.services.api_client import ApiError
 from _mext.services.api_worker import DownloadUrlWorker, MaterialsLoadWorker
 from _mext.ui.components.filter_panel import FilterPanel
 from _mext.ui.components.material_card import MaterialCard
+from _mext.ui.styles import (
+    COMBO_WIDTH_MD,
+    FILTER_PANEL_WIDTH,
+    GRID_H_SPACING,
+    GRID_V_SPACING,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +94,7 @@ class MarketPage(QWidget):
         self._sort_combo = ComboBox(self)
         self._sort_combo.addItems(["最新", "热门", "名称 A-Z", "名称 Z-A", "文件大小"])
         self._sort_combo.setCurrentIndex(0)
-        self._sort_combo.setFixedWidth(150)
+        self._sort_combo.setFixedWidth(COMBO_WIDTH_MD)
         header_layout.addWidget(self._sort_combo)
 
         layout.addLayout(header_layout)
@@ -99,7 +105,7 @@ class MarketPage(QWidget):
 
         # Filter panel (left sidebar)
         self._filter_panel = FilterPanel(self)
-        self._filter_panel.setFixedWidth(200)
+        self._filter_panel.setFixedWidth(FILTER_PANEL_WIDTH)
         content_layout.addWidget(self._filter_panel)
 
         # Scrollable card grid
@@ -110,8 +116,8 @@ class MarketPage(QWidget):
         self._grid_container = QWidget()
         self._grid_layout = FlowLayout(self._grid_container, needAni=False)
         self._grid_layout.setContentsMargins(0, 0, 0, 0)
-        self._grid_layout.setHorizontalSpacing(12)
-        self._grid_layout.setVerticalSpacing(12)
+        self._grid_layout.setHorizontalSpacing(GRID_H_SPACING)
+        self._grid_layout.setVerticalSpacing(GRID_V_SPACING)
 
         self._scroll_area.setWidget(self._grid_container)
         content_layout.addWidget(self._scroll_area, stretch=1)

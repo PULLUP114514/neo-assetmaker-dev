@@ -23,6 +23,8 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
+from _mext.ui.styles import COLOR_ERROR
+
 
 class Fido2PinDialog(QDialog):
     """Modal dialog for FIDO2 authenticator PIN entry.
@@ -75,7 +77,11 @@ class Fido2PinDialog(QDialog):
                 self,
             )
             self._retries_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            setCustomStyleSheet(self._retries_label, "color: #dc3545;", "color: #e74c3c;")
+            setCustomStyleSheet(
+                self._retries_label,
+                f"color: {COLOR_ERROR[0]};",
+                f"color: {COLOR_ERROR[1]};",
+            )
             layout.addWidget(self._retries_label)
 
         # PIN input

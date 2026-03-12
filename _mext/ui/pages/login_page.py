@@ -39,6 +39,7 @@ from _mext.services.api_worker import (
     DrmLoginInitWorker,
 )
 from _mext.ui.dialogs.fido2_touch_dialog import Fido2TouchDialog
+from _mext.ui.styles import COLOR_BORDER
 
 logger = logging.getLogger(__name__)
 
@@ -122,12 +123,12 @@ class LoginPage(QWidget):
         separator_layout = QHBoxLayout()
         left_line = QWidget(form_container)
         left_line.setFixedHeight(1)
-        setCustomStyleSheet(left_line, "background-color: #d0d0d0;", "background-color: #555;")
+        setCustomStyleSheet(left_line, f"background-color: {COLOR_BORDER[0]};", f"background-color: {COLOR_BORDER[1]};")
         or_label = BodyLabel("或", form_container)
         or_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         right_line = QWidget(form_container)
         right_line.setFixedHeight(1)
-        setCustomStyleSheet(right_line, "background-color: #d0d0d0;", "background-color: #555;")
+        setCustomStyleSheet(right_line, f"background-color: {COLOR_BORDER[0]};", f"background-color: {COLOR_BORDER[1]};")
         separator_layout.addWidget(left_line)
         separator_layout.addWidget(or_label)
         separator_layout.addWidget(right_line)

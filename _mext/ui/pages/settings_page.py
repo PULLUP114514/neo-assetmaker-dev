@@ -37,6 +37,7 @@ from _mext.services.api_worker import ApiCallWorker, CredentialsLoadWorker
 from _mext.ui.components.fido2_credential_card import Fido2CredentialCard
 from _mext.ui.dialogs.fido2_pin_dialog import Fido2PinDialog
 from _mext.ui.dialogs.fido2_touch_dialog import Fido2TouchDialog
+from _mext.ui.styles import COMBO_WIDTH_LG, COMBO_WIDTH_SM
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +120,7 @@ class SettingsPage(QWidget):
         theme_layout.addWidget(BodyLabel("主题：", content))
         self._theme_combo = ComboBox(content)
         self._theme_combo.addItems(["跟随系统", "浅色", "深色"])
-        self._theme_combo.setFixedWidth(200)
+        self._theme_combo.setFixedWidth(COMBO_WIDTH_LG)
         theme_layout.addWidget(self._theme_combo)
         theme_layout.addStretch()
         layout.addLayout(theme_layout)
@@ -130,7 +131,7 @@ class SettingsPage(QWidget):
         lang_layout.addWidget(BodyLabel("语言：", content))
         self._lang_combo = ComboBox(content)
         self._lang_combo.addItems(["English", "Chinese (Simplified)", "Japanese", "Korean"])
-        self._lang_combo.setFixedWidth(200)
+        self._lang_combo.setFixedWidth(COMBO_WIDTH_LG)
         lang_layout.addWidget(self._lang_combo)
         lang_layout.addStretch()
         layout.addLayout(lang_layout)
@@ -158,7 +159,7 @@ class SettingsPage(QWidget):
         self._concurrent_combo = ComboBox(content)
         self._concurrent_combo.addItems(["1", "2", "3", "4", "5"])
         self._concurrent_combo.setCurrentText(str(self._services.config.max_concurrent_downloads))
-        self._concurrent_combo.setFixedWidth(80)
+        self._concurrent_combo.setFixedWidth(COMBO_WIDTH_SM)
         concurrent_layout.addWidget(self._concurrent_combo)
         concurrent_layout.addStretch()
         layout.addLayout(concurrent_layout)

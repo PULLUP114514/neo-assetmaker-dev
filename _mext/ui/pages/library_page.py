@@ -11,20 +11,20 @@ from typing import Optional
 
 from qfluentwidgets import (
     FlowLayout,
+    FluentIcon,
     InfoBar,
     InfoBarPosition,
-    PushButton,
     ScrollArea,
     SearchLineEdit,
     SubtitleLabel,
     TabBar,
-    ToggleButton,
+    TableWidget,
+    ToolButton,
 )
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
-    QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
@@ -34,6 +34,8 @@ from _mext.core.service_manager import ServiceManager
 from _mext.models.material import Material
 from _mext.services.api_client import ApiError
 from _mext.services.api_worker import LibraryLoadWorker
+from _mext.ui.styles import GRID_H_SPACING, GRID_V_SPACING
+
 from _mext.ui.components.material_card import MaterialCard
 
 logger = logging.getLogger(__name__)
@@ -88,15 +90,20 @@ class LibraryPage(QWidget):
         self._search_edit.setFixedWidth(250)
         header_layout.addWidget(self._search_edit)
 
-        self._grid_btn = ToggleButton("Grid", self)
+        self._grid_btn = ToolButton(FluentIcon.GRID, self)
+        self._grid_btn.setToolTip("卡片视图")
+        self._grid_btn.setCheckable(True)
         self._grid_btn.setChecked(True)
         header_layout.addWidget(self._grid_btn)
 
-        self._list_btn = ToggleButton("List", self)
+        self._list_btn = ToolButton(FluentIcon.VIEW, self)
+        self._list_btn.setToolTip("列表视图")
+        self._list_btn.setCheckable(True)
         self._list_btn.setChecked(False)
         header_layout.addWidget(self._list_btn)
 
-        self._refresh_btn = PushButton("Refresh", self)
+        self._refresh_btn = ToolButton(FluentIcon.SYNC, self)
+        self._refresh_btn.setToolTip("刷新素材库")
         header_layout.addWidget(self._refresh_btn)
 
         layout.addLayout(header_layout)
@@ -108,18 +115,18 @@ class LibraryPage(QWidget):
         self._grid_container = QWidget()
         self._grid_flow = FlowLayout(self._grid_container, needAni=False)
         self._grid_flow.setContentsMargins(0, 0, 0, 0)
-        self._grid_flow.setHorizontalSpacing(12)
-        self._grid_flow.setVerticalSpacing(12)
+        self._grid_flow.setHorizontalSpacing(GRID_H_SPACING)
+        self._grid_flow.setVerticalSpacing(GRID_V_SPACING)
         self._grid_scroll.setWidget(self._grid_container)
         layout.addWidget(self._grid_scroll, stretch=1)
 
-        # List view (table)
-        self._table = QTableWidget(self)
+        # List view (table) — QFluentWidgets TableWidget for Fluent theme support
+        self._table = TableWidget(self)
         self._table.setColumnCount(5)
         self._table.setHorizontalHeaderLabels(["Name", "Category", "Operator", "Size", "Date"])
         self._table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._table.setSelectionBehavior(TableWidget.SelectionBehavior.SelectRows)
+        self._table.setEditTriggers(TableWidget.EditTrigger.NoEditTriggers)
         self._table.verticalHeader().setVisible(False)
         self._table.setVisible(False)
         layout.addWidget(self._table, stretch=1)

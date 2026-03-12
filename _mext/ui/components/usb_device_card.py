@@ -15,6 +15,7 @@ from qfluentwidgets import (
     CardWidget,
     SubtitleLabel,
     setCustomStyleSheet,
+    themeColor,
 )
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
@@ -97,6 +98,19 @@ class UsbDeviceCard(CardWidget):
         """Emit selected signal on click."""
         super().mouseReleaseEvent(event)
         self.selected.emit()
+
+    def set_selected(self, selected: bool) -> None:
+        """Toggle selection highlight using the current theme color."""
+        self._is_selected = selected
+        if selected:
+            color = themeColor().name()
+            setCustomStyleSheet(
+                self,
+                f"UsbDeviceCard {{ border: 2px solid {color}; }}",
+                f"UsbDeviceCard {{ border: 2px solid {color}; }}",
+            )
+        else:
+            setCustomStyleSheet(self, "", "")
 
     def set_selected(self, selected: bool) -> None:
         """Update the visual selection state of the card."""
