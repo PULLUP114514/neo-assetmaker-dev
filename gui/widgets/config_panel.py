@@ -165,7 +165,7 @@ class ConfigPanel(QWidget):
         self.combo_screen = ComboBox()
         for screen in RESOLUTION_SPECS:
             desc = RESOLUTION_SPECS[screen].get("description", screen)
-            self.combo_screen.addItem(desc, screen)
+            self.combo_screen.addItem(desc, userData=screen)
         self.combo_screen.setToolTip("选择目标分辨率")
         info_layout.addRow("分辨率:", self.combo_screen)
 
@@ -279,7 +279,7 @@ class ConfigPanel(QWidget):
 
         self.combo_trans_in_type = ComboBox()
         for t in TRANSITION_TYPES:
-            self.combo_trans_in_type.addItem(t, t)
+            self.combo_trans_in_type.addItem(t, userData=t)
         self.combo_trans_in_type.setToolTip("进入过渡效果类型")
         in_layout.addRow("类型:", self.combo_trans_in_type)
 
@@ -320,7 +320,7 @@ class ConfigPanel(QWidget):
 
         self.combo_trans_loop_type = ComboBox()
         for t in TRANSITION_TYPES:
-            self.combo_trans_loop_type.addItem(t, t)
+            self.combo_trans_loop_type.addItem(t, userData=t)
         self.combo_trans_loop_type.setToolTip("循环过渡效果类型")
         loop_layout.addRow("类型:", self.combo_trans_loop_type)
 
@@ -371,7 +371,7 @@ class ConfigPanel(QWidget):
 
         self.combo_overlay_type = ComboBox()
         for t in OVERLAY_TYPES:
-            self.combo_overlay_type.addItem(t, t)
+            self.combo_overlay_type.addItem(t, userData=t)
         self.combo_overlay_type.setToolTip("叠加UI类型: none/arknights/image")
         type_layout.addRow("类型:", self.combo_overlay_type)
         group_type.addLayout(type_layout)

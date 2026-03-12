@@ -31,7 +31,7 @@ class FluentGroupBox(QtGroupBox):
             "QGroupBox { font-weight: bold; color: #ccc; border: 1px solid #555; border-radius: 8px; padding: 12px; margin: 8px 0; background-color: #2b2b2b; } QGroupBox::title { subcontrol-position: top left; padding: 0 8px; background-color: #2b2b2b; border-radius: 4px; }"
         )
 
-from config.epconfig import EPConfig, ScreenType
+from config.epconfig import EPConfig, ScreenType, OverlayType
 from config.constants import RESOLUTION_SPECS, OPERATOR_CLASS_PRESETS
 from config.operator_db import get_operator_db
 
@@ -49,6 +49,7 @@ class BasicConfigPanel(QWidget):
 
         self._config: Optional[EPConfig] = None
         self._base_dir: str = ""
+        self._updating = False  # 防止set_config期间循环更新
         self._operator_db = get_operator_db()
         self._is_updating_from_db = False  # 防止循环更新
 
@@ -193,7 +194,7 @@ class BasicConfigPanel(QWidget):
 
     def _on_operator_name_changed(self, text: str):
         """干员名称变更处理"""
-        if self._is_updating_from_db:
+        if self._updating or self._is_updating_from_db:
             return
         
         if not text:
@@ -220,31 +221,44 @@ class BasicConfigPanel(QWidget):
         """设置配置"""
         self._config = config
         self._base_dir = base_dir
+        self._updating = True
 
-        if config:
-            self.edit_name.setText(config.name)
-            
-            # 分辨率
-            index = self.combo_screen.findData(config.screen.value)
-            if index >= 0:
-                self.combo_screen.setCurrentIndex(index)
+        try:
+            if config:
+                self.edit_name.setText(config.name)
 
-            # 循环视频
-            self.edit_loop_file.setText(config.loop.file)
-            
-            # 明日方舟干员信息
-            if config.overlay.arknights_options:
-                self.edit_ark_name.setText(config.overlay.arknights_options.operator_name)
-                # 设置职业图标
-                class_icon = config.overlay.arknights_options.operator_class_icon or ""
-                index = self.combo_ark_class.findData(class_icon)
+                # 分辨率
+                index = self.combo_screen.findData(config.screen.value)
                 if index >= 0:
-                    self.combo_ark_class.setCurrentIndex(index)
-                else:
-                    self.combo_ark_class.setCurrentIndex(0)  # 选择"无"
-            
-            # 更新自动完成列表
-            self._update_completer()
+                    self.combo_screen.setCurrentIndex(index)
+
+                # 循环视频
+                self.edit_loop_file.setText(config.loop.file)
+
+                # 根据overlay类型同步模板下拉框
+                if config.overlay.type == OverlayType.ARKNIGHTS:
+                    self.combo_template.setCurrentIndex(1)  # 明日方舟模板
+
+                # 根据模板显示/隐藏干员信息
+                self.group_arknights.setVisible(
+                    config.overlay.type == OverlayType.ARKNIGHTS
+                )
+
+                # 明日方舟干员信息
+                if config.overlay.arknights_options:
+                    self.edit_ark_name.setText(config.overlay.arknights_options.operator_name)
+                    # 设置职业图标
+                    class_icon = config.overlay.arknights_options.operator_class_icon or ""
+                    index = self.combo_ark_class.findData(class_icon)
+                    if index >= 0:
+                        self.combo_ark_class.setCurrentIndex(index)
+                    else:
+                        self.combo_ark_class.setCurrentIndex(0)  # 选择"无"
+
+                # 更新自动完成列表
+                self._update_completer()
+        finally:
+            self._updating = False
 
     def _update_completer(self):
         """更新自动完成列表"""
@@ -268,9 +282,8 @@ class BasicConfigPanel(QWidget):
         screen_value = self.combo_screen.currentData()
         self._config.screen = ScreenType.from_string(screen_value)
 
-        # 循环视频
+        # 循环视频文件路径（不修改 loop.is_image，基础面板无此控件，保留高级面板设置的值）
         self._config.loop.file = self.edit_loop_file.text()
-        self._config.loop.is_image = False
 
         # 根据模板设置其他参数
         template = self.combo_template.currentText()
@@ -310,11 +323,15 @@ class BasicConfigPanel(QWidget):
 
     def _on_config_changed(self):
         """配置变更处理"""
+        if self._updating:
+            return
         self.update_config_from_ui()
         self.config_changed.emit()
 
     def _on_template_changed(self):
         """模板变更处理"""
+        if self._updating:
+            return
         template = self.combo_template.currentText()
         # 显示或隐藏明日方舟干员信息
         self.group_arknights.setVisible(template == "明日方舟模板")
