@@ -851,8 +851,13 @@ class ConfigPanel(QWidget):
                 "视频文件 (*.mp4 *.avi *.mov)"
             )
         if path:
-            self.edit_loop_file.setText(path)
-            # 发送选择信号用于预览
+            # 复制文件到项目目录，使用相对路径
+            rel_path = self._copy_to_project_dir(path, "loop")
+            if rel_path:
+                self.edit_loop_file.setText(rel_path)
+            else:
+                self.edit_loop_file.setText(path)
+            # 发送选择信号用于预览（使用原始绝对路径，确保预览能加载）
             if self.radio_loop_image.isChecked():
                 self.loop_image_selected.emit(path)  # 图片模式
             else:
@@ -889,7 +894,13 @@ class ConfigPanel(QWidget):
             "视频文件 (*.mp4 *.avi *.mov)"
         )
         if path:
-            self.edit_intro_file.setText(path)
+            # 复制文件到项目目录，使用相对路径
+            rel_path = self._copy_to_project_dir(path, "intro")
+            if rel_path:
+                self.edit_intro_file.setText(rel_path)
+            else:
+                self.edit_intro_file.setText(path)
+            # 发送选择信号用于预览（使用原始绝对路径）
             self.intro_video_selected.emit(path)
 
     def _pick_color(self, edit: LineEdit):

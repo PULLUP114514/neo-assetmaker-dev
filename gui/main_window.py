@@ -1150,6 +1150,71 @@ class MainWindow(QMainWindow):
         except Exception as e:
             show_error(e, "打开文件", self)
 
+    def _load_project(self, path: str):
+        """加载指定路径的项目文件（供最近打开和崩溃恢复调用）"""
+        if not os.path.exists(path):
+            QMessageBox.warning(self, "文件不存在", f"文件不存在:\n{path}")
+            return
+
+        if not self._check_save():
+            return
+
+        self._cleanup_temp_dir()
+
+        try:
+            self._config = EPConfig.load_from_file(path)
+            self._project_path = path
+            self._base_dir = os.path.dirname(path)
+            self._is_modified = False
+
+            # 清空所有预览组件
+            self.video_preview.clear()
+            self.intro_preview.clear()
+            self.frame_capture_preview.clear()
+            self.transition_preview.clear_image("in")
+            self.transition_preview.clear_image("loop")
+            self._loop_image_path = None
+            self.timeline.set_total_frames(0)
+            self._loop_in_out = (0, 0)
+            self._intro_in_out = (0, 0)
+
+            # 更新UI
+            self.advanced_config_panel.set_config(self._config, self._base_dir)
+            self.basic_config_panel.set_config(self._config, self._base_dir)
+            self.json_preview.set_config(self._config, self._base_dir)
+            self.video_preview.set_epconfig(self._config)
+
+            # 延迟加载循环素材
+            if self._config.loop.file:
+                file_path = self._config.loop.file
+                if not os.path.isabs(file_path):
+                    file_path = os.path.join(self._base_dir, file_path)
+                if os.path.exists(file_path):
+                    if self._config.loop.is_image:
+                        QTimer.singleShot(
+                            100, lambda fp=file_path: self._load_loop_image(fp))
+                    else:
+                        QTimer.singleShot(
+                            100, lambda vp=file_path: self.video_preview.load_video(vp))
+
+            # 延迟加载入场视频
+            if self._config.intro.enabled and self._config.intro.file:
+                intro_path = self._config.intro.file
+                if not os.path.isabs(intro_path):
+                    intro_path = os.path.join(self._base_dir, intro_path)
+                if os.path.exists(intro_path):
+                    QTimer.singleShot(
+                        200, lambda vp=intro_path: self.intro_preview.load_video(vp))
+
+            self._update_title()
+            self.status_bar.showMessage(f"已打开: {path}")
+            self._add_recent_file(path)
+            self._auto_save_service.start(
+                self._config, self._project_path, self._base_dir)
+
+        except Exception as e:
+            show_error(e, "打开文件", self)
+
     def _on_save_project(self):
         """保存项目"""
         if not self._config:

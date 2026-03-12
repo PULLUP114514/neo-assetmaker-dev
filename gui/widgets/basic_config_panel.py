@@ -2,6 +2,8 @@
 基础设置面板 - 简化版配置界面
 """
 import os
+import shutil
+import logging
 from typing import Optional
 
 from PyQt6.QtWidgets import (
@@ -361,13 +363,47 @@ class BasicConfigPanel(QWidget):
             ";;".join(filters)
         )
         if path:
-            self.edit_loop_file.setText(path)
+            # 复制文件到项目目录，使用相对路径
+            rel_path = self._copy_to_project_dir(path, "loop")
+            display_path = rel_path if rel_path else path
+            self.edit_loop_file.setText(display_path)
             # 更新配置
             if self._config:
-                self._config.loop.file = path
+                self._config.loop.file = display_path
                 # 检查文件类型
                 ext = os.path.splitext(path)[1].lower()
                 image_extensions = [".jpg", ".jpeg", ".png", ".bmp", ".gif"]
                 self._config.loop.is_image = ext in image_extensions
-            # 发送信号
+            # 发送选择信号用于预览（使用原始绝对路径）
             self.video_file_selected.emit(path)
+
+    def _copy_to_project_dir(self, src_path: str, base_name: str) -> str:
+        """将文件复制到项目目录
+
+        Args:
+            src_path: 源文件路径
+            base_name: 目标文件基础名称
+
+        Returns:
+            相对路径，失败返回空字符串
+        """
+        if not self._base_dir:
+            return ""
+
+        try:
+            _, ext = os.path.splitext(src_path)
+            dest_path = os.path.join(self._base_dir, f"{base_name}{ext}")
+
+            counter = 1
+            while os.path.exists(dest_path):
+                if os.path.samefile(src_path, dest_path):
+                    return f"{base_name}{ext}"
+                dest_path = os.path.join(self._base_dir, f"{base_name}_{counter}{ext}")
+                counter += 1
+
+            shutil.copy2(src_path, dest_path)
+            return os.path.basename(dest_path)
+
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"复制文件失败: {e}")
+            return ""
