@@ -194,8 +194,6 @@ class ImageProcessor:
         img = ImageProcessor.resize_image(img, LOGO_WIDTH, LOGO_HEIGHT)
         # 确保BGRA格式
         img = ImageProcessor.ensure_bgra(img)
-        # 旋转180度
-        img = ImageProcessor.rotate_180(img)
         return img
 
     @staticmethod
@@ -218,8 +216,6 @@ class ImageProcessor:
         img = ImageProcessor.resize_image(img, target_w, target_h)
         # 确保BGRA格式
         img = ImageProcessor.ensure_bgra(img)
-        # 旋转180度
-        img = ImageProcessor.rotate_180(img)
         return img
 
     @staticmethod
