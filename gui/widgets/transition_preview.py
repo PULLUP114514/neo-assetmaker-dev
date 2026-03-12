@@ -5,7 +5,7 @@ import logging
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSizePolicy
 from PyQt6.QtCore import Qt, pyqtSignal
-from qfluentwidgets import StrongBodyLabel
+from qfluentwidgets import StrongBodyLabel, setCustomStyleSheet
 
 from gui.widgets.video_preview import VideoPreviewWidget
 
@@ -37,7 +37,7 @@ class TransitionPreviewWidget(QWidget):
 
         label_in_title = StrongBodyLabel("进入过渡")
         label_in_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label_in_title.setStyleSheet("color: #ccc; font-size: 11px; padding: 1px;")
+        setCustomStyleSheet(label_in_title, "color: #555; font-size: 11px; padding: 1px;", "color: #ccc; font-size: 11px; padding: 1px;")
         label_in_title.setMaximumHeight(20)
         left_layout.addWidget(label_in_title)
 
@@ -59,7 +59,7 @@ class TransitionPreviewWidget(QWidget):
 
         label_loop_title = StrongBodyLabel("循环过渡")
         label_loop_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label_loop_title.setStyleSheet("color: #ccc; font-size: 11px; padding: 1px;")
+        setCustomStyleSheet(label_loop_title, "color: #555; font-size: 11px; padding: 1px;", "color: #ccc; font-size: 11px; padding: 1px;")
         label_loop_title.setMaximumHeight(20)
         right_layout.addWidget(label_loop_title)
 

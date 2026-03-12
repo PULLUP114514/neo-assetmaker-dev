@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint
 from PyQt6.QtGui import QImage, QPixmap, QMouseEvent, QKeyEvent
+from qfluentwidgets import CaptionLabel, setCustomStyleSheet
 
 if TYPE_CHECKING:
     from config.epconfig import EPConfig
@@ -102,15 +103,10 @@ class VideoPreviewWidget(QWidget):
         self.video_label = QLabel()
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.video_label.setMinimumSize(320, 180)
-        self.video_label.setStyleSheet(
-            """
-            background-color: #121212;
-            border: 2px solid #333;
-            border-radius: 8px;
-            color: #cccccc;
-            font-size: 14px;
-            font-weight: 500;
-            """
+        setCustomStyleSheet(
+            self.video_label,
+            "background-color: #f0f0f0; border: 2px solid #ddd; border-radius: 8px; color: #666; font-size: 14px; font-weight: 500;",
+            "background-color: #121212; border: 2px solid #333; border-radius: 8px; color: #ccc; font-size: 14px; font-weight: 500;"
         )
         self.video_label.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
@@ -121,17 +117,11 @@ class VideoPreviewWidget(QWidget):
         layout.addWidget(self.video_label)
 
         # 信息标签（控制按钮已移至时间轴组件）
-        self.info_label = QLabel("帧: 0/0 | 裁剪: (0, 0, 0, 0)")
-        self.info_label.setStyleSheet(
-            """
-            color: #aaaaaa;
-            font-size: 11px;
-            padding: 4px 10px;
-            background-color: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 4px;
-            margin-top: 5px;
-            """
+        self.info_label = CaptionLabel("帧: 0/0 | 裁剪: (0, 0, 0, 0)")
+        setCustomStyleSheet(
+            self.info_label,
+            "color: #666; padding: 4px 10px; background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; margin-top: 5px;",
+            "color: #aaa; padding: 4px 10px; background-color: #1a1a1a; border: 1px solid #333; border-radius: 4px; margin-top: 5px;"
         )
         layout.addWidget(self.info_label)
 
@@ -255,25 +245,25 @@ class VideoPreviewWidget(QWidget):
         self._display_frame(frame)
 
     def _init_cropbox(self):
-        """初始化裁剪框（在旋转后坐标系中）"""
+        """初始化裁剪框（在旋转后坐标系中，视频坐标空间）"""
         rotated_w, rotated_h = self._get_rotated_video_size()
-        w, h = self.target_width, self.target_height
+        target_ratio = self.target_aspect_ratio
 
-        # 计算缩放比例，使图片能够完整显示在目标尺寸内
-        scale_w = w / rotated_w
-        scale_h = h / rotated_h
-        scale = min(scale_w, scale_h)
+        # 在视频坐标空间中找到最大的、符合目标宽高比的裁剪区域
+        if rotated_w / rotated_h > target_ratio:
+            # 视频更宽 → 高度填满，宽度按比例裁剪
+            crop_h = rotated_h
+            crop_w = int(crop_h * target_ratio)
+        else:
+            # 视频更高 → 宽度填满，高度按比例裁剪
+            crop_w = rotated_w
+            crop_h = int(crop_w / target_ratio)
 
-        # 计算缩放后的图片尺寸
-        scaled_w = int(rotated_w * scale)
-        scaled_h = int(rotated_h * scale)
+        # 居中放置裁剪框
+        x = (rotated_w - crop_w) // 2
+        y = (rotated_h - crop_h) // 2
 
-        # 计算居中位置
-        x = (w - scaled_w) // 2
-        y = (h - scaled_h) // 2
-
-        # 设置裁剪框为缩放后的图片尺寸和位置
-        self.cropbox = [x, y, scaled_w, scaled_h]
+        self.cropbox = [x, y, crop_w, crop_h]
         self._emit_cropbox_changed()
 
     def _bound_cropbox(self):

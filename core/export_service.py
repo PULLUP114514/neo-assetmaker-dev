@@ -279,17 +279,6 @@ class ExportWorker(QThread):
                 if rotate_180:
                     frame = cv2.rotate(frame, cv2.ROTATE_180)
 
-                if padding_side == "right":
-                    pad_w = padded_w - target_w
-                    if pad_w > 0:
-                        padding = np.zeros((target_h, pad_w, 3), dtype=np.uint8)
-                        frame = np.hstack([frame, padding])
-                elif padding_side == "bottom":
-                    pad_h = padded_h - target_h
-                    if pad_h > 0:
-                        padding = np.zeros((pad_h, target_w, 3), dtype=np.uint8)
-                        frame = np.vstack([frame, padding])
-
                 frame_path = os.path.join(temp_dir, f"frame_{frame_idx:06d}.png").replace("\\", "/")
                 success, encoded = cv2.imencode('.png', frame)
                 if success:
@@ -315,6 +304,8 @@ class ExportWorker(QThread):
                 input_pattern=input_pattern,
                 output_file=output_file,
                 fps=params.fps,
+                padded_w=padded_w,
+                padded_h=padded_h,
             )
 
         finally:
@@ -326,22 +317,37 @@ class ExportWorker(QThread):
         input_pattern: str,
         output_file: str,
         fps: float,
+        padded_w: int = 0,
+        padded_h: int = 0,
     ):
         """使用FFmpeg进行CRF质量编码
 
         CRF (Constant Rate Factor) 模式以恒定质量为目标，
         由 x264 自动分配码率。
         参考: https://trac.ffmpeg.org/wiki/Encode/H.264#crf
+
+        当 padded_w/padded_h 非零时，使用 -vf pad 滤镜添加黑边，
+        替代之前逐帧 numpy 拼接的方式，性能更优。
+        参考: https://ffmpeg.org/ffmpeg-filters.html#pad
         """
         preset_config = QUALITY_PRESETS.get(self._quality, QUALITY_PRESETS["高"])
         crf_value = preset_config["crf"]
         preset = preset_config["preset"]
+
+        # 构建视频滤镜（pad 黑边）
+        vf_filters = []
+        if padded_w > 0 and padded_h > 0:
+            vf_filters.append(f"pad={padded_w}:{padded_h}:0:0:black")
 
         cmd = [
             self._ffmpeg_path,
             "-hide_banner",
             "-framerate", str(fps),
             "-i", input_pattern,
+        ]
+        if vf_filters:
+            cmd.extend(["-vf", ",".join(vf_filters)])
+        cmd.extend([
             "-c:v", "libx264",
             "-preset", preset,
             "-crf", str(crf_value),
@@ -352,7 +358,7 @@ class ExportWorker(QThread):
             "-an",
             "-y",
             output_file
-        ]
+        ])
 
         logger.info(f"执行ffmpeg CRF编码 (crf={crf_value}, preset={preset}): {' '.join(cmd)}")
 
@@ -424,18 +430,6 @@ class ExportWorker(QThread):
         if rotate_180:
             frame = cv2.rotate(frame, cv2.ROTATE_180)
 
-        # 添加黑边
-        if padding_side == "right":
-            pad_w = padded_w - target_w
-            if pad_w > 0:
-                padding = np.zeros((target_h, pad_w, 3), dtype=np.uint8)
-                frame = np.hstack([frame, padding])
-        elif padding_side == "bottom":
-            pad_h = padded_h - target_h
-            if pad_h > 0:
-                padding = np.zeros((pad_h, target_w, 3), dtype=np.uint8)
-                frame = np.vstack([frame, padding])
-
         temp_dir = os.path.join(self._output_dir, "_temp_frames").replace("\\", "/")
         os.makedirs(temp_dir, exist_ok=True)
 
@@ -468,6 +462,8 @@ class ExportWorker(QThread):
                 input_pattern=input_pattern,
                 output_file=output_file,
                 fps=fps,
+                padded_w=padded_w,
+                padded_h=padded_h,
             )
 
         finally:

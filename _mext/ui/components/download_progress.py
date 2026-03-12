@@ -15,6 +15,7 @@ from qfluentwidgets import (
     ProgressBar,
     PushButton,
     ToolButton,
+    setCustomStyleSheet,
 )
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
@@ -197,7 +198,7 @@ class DownloadProgressWidget(CardWidget):
         self._task.status = DownloadStatus.FAILED
         self._status_label.setText("失败")
         self._progress_label.setText(f"错误: {error}")
-        self._status_label.setStyleSheet("color: #e74c3c;")
+        setCustomStyleSheet(self._status_label, "color: #dc3545;", "color: #e74c3c;")
         self._update_state()
 
     def mark_paused(self) -> None:

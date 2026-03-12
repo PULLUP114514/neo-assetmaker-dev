@@ -12,14 +12,14 @@ import requests
 from typing import Optional, Dict, Any
 
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QComboBox, QTextEdit, QProgressBar, QMessageBox,
     QWidget, QFormLayout, QGroupBox, QRadioButton, QButtonGroup
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt6.QtGui import QFont, QIcon
 
-from qfluentwidgets import setCustomStyleSheet
+from qfluentwidgets import setCustomStyleSheet, PushButton as FluentPushButton, PrimaryPushButton
 from config.constants import APP_NAME
 from utils.file_utils import get_app_dir
 
@@ -380,7 +380,7 @@ class FlasherDialog(QDialog):
         title_label = QLabel("电子通行证烧录程序")
         title_label.setFont(QFont("Microsoft YaHei", 16, QFont.Weight.Bold))
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_label.setStyleSheet("color: #ff6b8b; margin: 10px 0;")
+        setCustomStyleSheet(title_label, "color: #ff6b8b; margin: 10px 0;", "color: #ff6b8b; margin: 10px 0;")
         layout.addWidget(title_label)
         
         # 版本信息
@@ -477,80 +477,31 @@ class FlasherDialog(QDialog):
         button_layout = QVBoxLayout()
         button_layout.setSpacing(8)
         
-        self.install_driver_button = QPushButton("安装驱动")
-        self.install_driver_button.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                padding: 10px 20px;
-                border: none;
-                border-radius: 4px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QPushButton:pressed {
-                background-color: #3d8b40;
-            }
-        """)
+        self.install_driver_button = FluentPushButton("安装驱动")
+        setCustomStyleSheet(
+            self.install_driver_button,
+            "FluentPushButton { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; font-weight: 500; } FluentPushButton:hover { background-color: #45a049; } FluentPushButton:pressed { background-color: #3d8b40; }",
+            "FluentPushButton { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; font-weight: 500; } FluentPushButton:hover { background-color: #45a049; } FluentPushButton:pressed { background-color: #3d8b40; }"
+        )
         self.install_driver_button.clicked.connect(self._on_install_driver)
         
-        self.get_version_button = QPushButton("获取版本信息")
-        self.get_version_button.setStyleSheet("""
-            QPushButton {
-                background-color: #666666;
-                color: white;
-                padding: 10px 20px;
-                border: none;
-                border-radius: 4px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #555555;
-            }
-            QPushButton:pressed {
-                background-color: #444444;
-            }
-        """)
+        self.get_version_button = FluentPushButton("获取版本信息")
+        setCustomStyleSheet(
+            self.get_version_button,
+            "FluentPushButton { background-color: #666; color: white; padding: 10px 20px; border: none; border-radius: 4px; font-weight: 500; } FluentPushButton:hover { background-color: #555; } FluentPushButton:pressed { background-color: #444; }",
+            "FluentPushButton { background-color: #666; color: white; padding: 10px 20px; border: none; border-radius: 4px; font-weight: 500; } FluentPushButton:hover { background-color: #555; } FluentPushButton:pressed { background-color: #444; }"
+        )
         self.get_version_button.clicked.connect(self._on_get_version)
         
-        self.start_button = QPushButton("开始烧录")
-        self.start_button.setStyleSheet("""
-            QPushButton {
-                background-color: #ff6b8b;
-                color: white;
-                padding: 10px 20px;
-                border: none;
-                border-radius: 4px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #ff527b;
-            }
-            QPushButton:pressed {
-                background-color: #ff3861;
-            }
-        """)
+        self.start_button = PrimaryPushButton("开始烧录")
         self.start_button.clicked.connect(self._on_start)
         
-        self.update_firmware_button = QPushButton("更新固件")
-        self.update_firmware_button.setStyleSheet("""
-            QPushButton {
-                background-color: #2196F3;
-                color: white;
-                padding: 10px 20px;
-                border: none;
-                border-radius: 4px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #1976D2;
-            }
-            QPushButton:pressed {
-                background-color: #1565C0;
-            }
-        """)
+        self.update_firmware_button = FluentPushButton("更新固件")
+        setCustomStyleSheet(
+            self.update_firmware_button,
+            "FluentPushButton { background-color: #2196F3; color: white; padding: 10px 20px; border: none; border-radius: 4px; font-weight: 500; } FluentPushButton:hover { background-color: #1976D2; } FluentPushButton:pressed { background-color: #1565C0; }",
+            "FluentPushButton { background-color: #2196F3; color: white; padding: 10px 20px; border: none; border-radius: 4px; font-weight: 500; } FluentPushButton:hover { background-color: #1976D2; } FluentPushButton:pressed { background-color: #1565C0; }"
+        )
         self.update_firmware_button.clicked.connect(self._on_update_firmware)
 
         # 冻结环境禁用在线更新（无 git，安装目录可能无写权限）

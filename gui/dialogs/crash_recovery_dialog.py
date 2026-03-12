@@ -6,14 +6,16 @@ import logging
 from typing import Optional, List
 
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QListWidget, QListWidgetItem, QMessageBox, QGroupBox,
     QTextEdit, QProgressBar
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 
-from qfluentwidgets import setCustomStyleSheet
+from qfluentwidgets import (
+    setCustomStyleSheet, PushButton, PrimaryPushButton
+)
 from core.crash_recovery_service import RecoveryInfo, CrashRecoveryService
 
 logger = logging.getLogger(__name__)
@@ -101,7 +103,7 @@ class CrashRecoveryDialog(QDialog):
         title_label = QLabel("发现未保存的项目")
         title_label.setFont(QFont("Microsoft YaHei", 16, QFont.Weight.Bold))
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title_label.setStyleSheet("color: #ff6b8b; margin-bottom: 10px;")
+        setCustomStyleSheet(title_label, "color: #ff6b8b; margin-bottom: 10px;", "color: #ff6b8b; margin-bottom: 10px;")
         layout.addWidget(title_label)
 
         # 说明
@@ -149,24 +151,31 @@ class CrashRecoveryDialog(QDialog):
         # 按钮
         button_layout = QHBoxLayout()
 
-        self.recover_button = QPushButton("恢复")
-        self.recover_button.setStyleSheet("background-color: #ff6b8b; color: white; padding: 10px 20px;")
+        self.recover_button = PrimaryPushButton("恢复")
         self.recover_button.setEnabled(False)
         self.recover_button.clicked.connect(self._on_recover)
         button_layout.addWidget(self.recover_button)
 
-        self.delete_button = QPushButton("删除")
-        self.delete_button.setStyleSheet("background-color: #dc3545; color: white; padding: 10px 20px;")
+        self.delete_button = PushButton("删除")
+        setCustomStyleSheet(
+            self.delete_button,
+            "PushButton { background-color: #dc3545; color: white; padding: 10px 20px; border: none; } PushButton:hover { background-color: #c82333; }",
+            "PushButton { background-color: #dc3545; color: white; padding: 10px 20px; border: none; } PushButton:hover { background-color: #c82333; }"
+        )
         self.delete_button.setEnabled(False)
         self.delete_button.clicked.connect(self._on_delete)
         button_layout.addWidget(self.delete_button)
 
-        self.delete_all_button = QPushButton("删除全部")
-        self.delete_all_button.setStyleSheet("background-color: #6c757d; color: white; padding: 10px 20px;")
+        self.delete_all_button = PushButton("删除全部")
+        setCustomStyleSheet(
+            self.delete_all_button,
+            "PushButton { background-color: #6c757d; color: white; padding: 10px 20px; border: none; } PushButton:hover { background-color: #5a6268; }",
+            "PushButton { background-color: #6c757d; color: white; padding: 10px 20px; border: none; } PushButton:hover { background-color: #5a6268; }"
+        )
         self.delete_all_button.clicked.connect(self._on_delete_all)
         button_layout.addWidget(self.delete_all_button)
 
-        self.cancel_button = QPushButton("取消")
+        self.cancel_button = PushButton("取消")
         self.cancel_button.clicked.connect(self.reject)
         button_layout.addWidget(self.cancel_button)
 

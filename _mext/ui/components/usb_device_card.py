@@ -14,6 +14,7 @@ from qfluentwidgets import (
     CaptionLabel,
     CardWidget,
     SubtitleLabel,
+    setCustomStyleSheet,
 )
 from qtpy.QtCore import Signal
 from qtpy.QtWidgets import (
@@ -101,9 +102,9 @@ class UsbDeviceCard(CardWidget):
         """Update the visual selection state of the card."""
         self._is_selected = selected
         if selected:
-            self.setStyleSheet("CardWidget { border: 2px solid #0078d4; }")
+            setCustomStyleSheet(self, "CardWidget { border: 2px solid #0078d4; }", "CardWidget { border: 2px solid #0078d4; }")
         else:
-            self.setStyleSheet("")
+            setCustomStyleSheet(self, "", "")
 
     @property
     def device_info(self) -> dict[str, Any]:

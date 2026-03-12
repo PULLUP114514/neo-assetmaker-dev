@@ -21,6 +21,7 @@ from qfluentwidgets import (
     PushButton,
     SubtitleLabel,
     TitleLabel,
+    setCustomStyleSheet,
 )
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtWidgets import (
@@ -115,12 +116,12 @@ class LoginPage(QWidget):
         separator_layout = QHBoxLayout()
         left_line = QWidget(form_container)
         left_line.setFixedHeight(1)
-        left_line.setStyleSheet("background-color: #d0d0d0;")
+        setCustomStyleSheet(left_line, "background-color: #d0d0d0;", "background-color: #555;")
         or_label = BodyLabel("或", form_container)
         or_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         right_line = QWidget(form_container)
         right_line.setFixedHeight(1)
-        right_line.setStyleSheet("background-color: #d0d0d0;")
+        setCustomStyleSheet(right_line, "background-color: #d0d0d0;", "background-color: #555;")
         separator_layout.addWidget(left_line)
         separator_layout.addWidget(or_label)
         separator_layout.addWidget(right_line)

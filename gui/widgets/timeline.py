@@ -3,10 +3,13 @@
 """
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QSizePolicy
+    QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QRect, QPoint
 from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QMouseEvent, QPaintEvent
+from qfluentwidgets import (
+    ToolButton, PushButton, CaptionLabel, setCustomStyleSheet
+)
 
 
 class TimelineSlider(QWidget):
@@ -215,59 +218,63 @@ class TimelineWidget(QWidget):
         control_layout = QHBoxLayout()
         control_layout.setSpacing(8)
 
-        self.btn_goto_start = QPushButton("|<")
+        self.btn_goto_start = ToolButton()
+        self.btn_goto_start.setText("|<")
         self.btn_goto_start.setFixedWidth(35)
         self.btn_goto_start.setToolTip("跳到开始")
         control_layout.addWidget(self.btn_goto_start)
 
-        self.btn_prev_frame = QPushButton("<")
+        self.btn_prev_frame = ToolButton()
+        self.btn_prev_frame.setText("<")
         self.btn_prev_frame.setFixedWidth(35)
         self.btn_prev_frame.setToolTip("上一帧 (\u2190)")
         control_layout.addWidget(self.btn_prev_frame)
 
-        self.btn_play_pause = QPushButton("播放")
+        self.btn_play_pause = PushButton("播放")
         self.btn_play_pause.setFixedWidth(50)
         self.btn_play_pause.setToolTip("播放/暂停 (Space)")
         control_layout.addWidget(self.btn_play_pause)
 
-        self.btn_next_frame = QPushButton(">")
+        self.btn_next_frame = ToolButton()
+        self.btn_next_frame.setText(">")
         self.btn_next_frame.setFixedWidth(35)
         self.btn_next_frame.setToolTip("下一帧 (\u2192)")
         control_layout.addWidget(self.btn_next_frame)
 
-        self.btn_goto_end = QPushButton(">|")
+        self.btn_goto_end = ToolButton()
+        self.btn_goto_end.setText(">|")
         self.btn_goto_end.setFixedWidth(35)
         self.btn_goto_end.setToolTip("跳到结束")
         control_layout.addWidget(self.btn_goto_end)
 
-        control_layout.addWidget(QLabel("|"))
+        control_layout.addWidget(CaptionLabel("|"))
 
-        self.btn_set_in = QPushButton("[ 入点")
+        self.btn_set_in = PushButton("[ 入点")
         self.btn_set_in.setToolTip("设置入点")
         control_layout.addWidget(self.btn_set_in)
 
-        self.btn_set_out = QPushButton("] 出点")
+        self.btn_set_out = PushButton("] 出点")
         self.btn_set_out.setToolTip("设置出点")
         control_layout.addWidget(self.btn_set_out)
 
-        control_layout.addWidget(QLabel("|"))
+        control_layout.addWidget(CaptionLabel("|"))
 
-        self.label_frame = QLabel("0 / 100")
+        self.label_frame = CaptionLabel("0 / 100")
         self.label_frame.setMinimumWidth(80)
         control_layout.addWidget(self.label_frame)
 
-        self.label_fps = QLabel("30.0 FPS")
+        self.label_fps = CaptionLabel("30.0 FPS")
         control_layout.addWidget(self.label_fps)
 
-        control_layout.addWidget(QLabel("|"))
+        control_layout.addWidget(CaptionLabel("|"))
 
         # 模拟预览按钮
-        self.btn_preview = QPushButton("模拟预览")
+        self.btn_preview = PushButton("模拟预览")
         self.btn_preview.setToolTip("启动模拟器预览实际显示效果")
         control_layout.addWidget(self.btn_preview)
 
         # 旋转按钮
-        self.btn_rotate = QPushButton("旋转 0°")
+        self.btn_rotate = PushButton("旋转 0°")
         self.btn_rotate.setToolTip("旋转视频（点击顺时针旋转90度）")
         self.btn_rotate.setMinimumWidth(85)
         control_layout.addWidget(self.btn_rotate)
@@ -283,47 +290,11 @@ class TimelineWidget(QWidget):
 
         self.setMinimumHeight(100)
         self.setMaximumHeight(150)
-        self.setStyleSheet("""
-            TimelineWidget {
-                background-color: #232323;
-                border: 1px solid #333333;
-                border-radius: 8px;
-                padding: 5px;
-            }
-            QPushButton {
-                background-color: #333333;
-                color: #f0f0f0;
-                border: 1px solid #444444;
-                border-radius: 6px;
-                padding: 8px 12px;
-                font-size: 12px;
-                font-weight: 500;
-                min-width: 35px;
-            }
-            QPushButton:hover {
-                background-color: #404040;
-                border-color: #555555;
-            }
-            QPushButton:checked {
-                background-color: #4285f4;
-                color: #ffffff;
-                border: 1px solid #5c9ce6;
-            }
-            QLabel {
-                color: #d0d0d0;
-                font-size: 12px;
-                padding: 0 8px;
-                font-weight: 400;
-            }
-            QLabel:first-child {
-                background-color: #2a2a2a;
-                padding: 8px 16px;
-                border-radius: 6px;
-                margin-bottom: 8px;
-                font-weight: 600;
-                color: #ffffff;
-            }
-        """)
+        setCustomStyleSheet(
+            self,
+            "TimelineWidget { background-color: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; padding: 5px; }",
+            "TimelineWidget { background-color: #232323; border: 1px solid #333; border-radius: 8px; padding: 5px; }"
+        )
 
     def _connect_signals(self):
         """连接信号"""

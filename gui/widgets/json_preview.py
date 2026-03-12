@@ -5,11 +5,14 @@ import json
 from typing import Optional
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QTextEdit, QLabel,
+    QWidget, QVBoxLayout,
     QHBoxLayout, QFrame
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor, QTextCharFormat, QSyntaxHighlighter, QTextDocument
+from qfluentwidgets import (
+    TextEdit, StrongBodyLabel, CaptionLabel, setCustomStyleSheet
+)
 
 from config.epconfig import EPConfig
 from core.validator import EPConfigValidator, ValidationLevel
@@ -82,25 +85,23 @@ class JsonPreviewWidget(QWidget):
         layout.setSpacing(5)
 
         # 标题
-        title_label = QLabel("配置预览 (JSON)")
-        title_label.setStyleSheet(
-            "font-weight: bold; color: #ddd; padding: 5px; "
-            "background-color: #333; border-bottom: 1px solid #444;"
+        title_label = StrongBodyLabel("配置预览 (JSON)")
+        setCustomStyleSheet(
+            title_label,
+            "padding: 5px; background-color: #f0f0f0; border-bottom: 1px solid #ddd;",
+            "padding: 5px; background-color: #333; border-bottom: 1px solid #444;"
         )
         layout.addWidget(title_label)
 
         # JSON文本框
-        self.text_edit = QTextEdit()
+        self.text_edit = TextEdit()
         self.text_edit.setReadOnly(True)
         self.text_edit.setFont(QFont("Consolas", 10))
-        self.text_edit.setStyleSheet("""
-            QTextEdit {
-                background-color: #1e1e1e;
-                color: #d4d4d4;
-                border: none;
-                padding: 10px;
-            }
-        """)
+        setCustomStyleSheet(
+            self.text_edit,
+            "TextEdit { background-color: #fafafa; color: #333; border: none; padding: 10px; }",
+            "TextEdit { background-color: #1e1e1e; color: #d4d4d4; border: none; padding: 10px; }"
+        )
         layout.addWidget(self.text_edit)
 
         # 语法高亮
@@ -108,27 +109,29 @@ class JsonPreviewWidget(QWidget):
 
         # 验证状态
         self.status_frame = QFrame()
-        self.status_frame.setStyleSheet(
+        setCustomStyleSheet(
+            self.status_frame,
+            "background-color: #f5f5f5; border-top: 1px solid #ddd;",
             "background-color: #2d2d2d; border-top: 1px solid #444;"
         )
         status_layout = QHBoxLayout(self.status_frame)
         status_layout.setContentsMargins(10, 5, 10, 5)
 
-        self.status_icon = QLabel()
+        self.status_icon = CaptionLabel()
         status_layout.addWidget(self.status_icon)
 
-        self.status_label = QLabel("未加载配置")
-        self.status_label.setStyleSheet("color: #888;")
+        self.status_label = CaptionLabel("未加载配置")
+        setCustomStyleSheet(self.status_label, "color: #999;", "color: #888;")
         status_layout.addWidget(self.status_label)
 
         status_layout.addStretch()
 
-        self.error_count_label = QLabel()
-        self.error_count_label.setStyleSheet("color: #f44;")
+        self.error_count_label = CaptionLabel()
+        setCustomStyleSheet(self.error_count_label, "color: #dc3545;", "color: #f44;")
         status_layout.addWidget(self.error_count_label)
 
-        self.warning_count_label = QLabel()
-        self.warning_count_label.setStyleSheet("color: #fa0;")
+        self.warning_count_label = CaptionLabel()
+        setCustomStyleSheet(self.warning_count_label, "color: #e68a00;", "color: #fa0;")
         status_layout.addWidget(self.warning_count_label)
 
         layout.addWidget(self.status_frame)
@@ -177,14 +180,14 @@ class JsonPreviewWidget(QWidget):
         # 更新状态
         if len(errors) == 0:
             self.status_icon.setText("✓")
-            self.status_icon.setStyleSheet("color: #4a4; font-size: 16px;")
+            setCustomStyleSheet(self.status_icon, "color: #2e7d32; font-size: 16px;", "color: #4a4; font-size: 16px;")
             self.status_label.setText("配置有效")
-            self.status_label.setStyleSheet("color: #4a4;")
+            setCustomStyleSheet(self.status_label, "color: #2e7d32;", "color: #4a4;")
         else:
             self.status_icon.setText("✗")
-            self.status_icon.setStyleSheet("color: #f44; font-size: 16px;")
+            setCustomStyleSheet(self.status_icon, "color: #dc3545; font-size: 16px;", "color: #f44; font-size: 16px;")
             self.status_label.setText("配置无效")
-            self.status_label.setStyleSheet("color: #f44;")
+            setCustomStyleSheet(self.status_label, "color: #dc3545;", "color: #f44;")
 
         # 更新计数和详细提示
         if len(errors) > 0:

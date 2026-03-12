@@ -14,6 +14,7 @@ from qfluentwidgets import (
     PrimaryPushButton,
     PushButton,
     SubtitleLabel,
+    setCustomStyleSheet,
 )
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
@@ -74,7 +75,7 @@ class Fido2PinDialog(QDialog):
                 self,
             )
             self._retries_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self._retries_label.setStyleSheet("color: #e74c3c;")
+            setCustomStyleSheet(self._retries_label, "color: #dc3545;", "color: #e74c3c;")
             layout.addWidget(self._retries_label)
 
         # PIN input
@@ -109,12 +110,12 @@ class Fido2PinDialog(QDialog):
         pin = self._pin_edit.text()
         if not pin:
             self._description_label.setText("请输入你的 PIN。")
-            self._description_label.setStyleSheet("color: #e74c3c;")
+            setCustomStyleSheet(self._description_label, "color: #dc3545;", "color: #e74c3c;")
             return
 
         if len(pin) < 4:
             self._description_label.setText("PIN 至少需要 4 个字符。")
-            self._description_label.setStyleSheet("color: #e74c3c;")
+            setCustomStyleSheet(self._description_label, "color: #dc3545;", "color: #e74c3c;")
             return
 
         self.accept()

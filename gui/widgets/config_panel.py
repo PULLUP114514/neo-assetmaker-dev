@@ -18,7 +18,7 @@ from PyQt6.QtGui import QKeySequence
 from qfluentwidgets import (
     PushButton, PrimaryPushButton, ToolButton,
     TabWidget, LineEdit, ComboBox, SpinBox, CheckBox,
-    SubtitleLabel, StrongBodyLabel, BodyLabel,
+    SubtitleLabel, StrongBodyLabel, BodyLabel, CaptionLabel,
     CardWidget, ScrollArea, TextEdit
 )
 
@@ -193,7 +193,8 @@ class ConfigPanel(QWidget):
 
     def _create_video_tab(self) -> QWidget:
         """创建视频配置选项卡"""
-        from PyQt6.QtWidgets import QRadioButton, QButtonGroup, QLabel
+        from PyQt6.QtWidgets import QButtonGroup
+        from qfluentwidgets import RadioButton, BodyLabel
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -205,15 +206,15 @@ class ConfigPanel(QWidget):
 
         # 模式选择
         mode_layout = QHBoxLayout()
-        self.radio_loop_video = QRadioButton("视频")
+        self.radio_loop_video = RadioButton("视频")
         self.radio_loop_video.setToolTip("使用视频文件作为循环背景")
-        self.radio_loop_image = QRadioButton("图片")
+        self.radio_loop_image = RadioButton("图片")
         self.radio_loop_image.setToolTip("使用静态图片作为循环背景")
         self.radio_loop_video.setChecked(True)
         self.loop_mode_group = QButtonGroup()
         self.loop_mode_group.addButton(self.radio_loop_video, 0)
         self.loop_mode_group.addButton(self.radio_loop_image, 1)
-        mode_layout.addWidget(QLabel("模式:"))
+        mode_layout.addWidget(BodyLabel("模式:"))
         mode_layout.addWidget(self.radio_loop_video)
         mode_layout.addWidget(self.radio_loop_image)
         mode_layout.addStretch()
@@ -258,7 +259,7 @@ class ConfigPanel(QWidget):
         self.spin_intro_duration.setToolTip("入场动画持续时间(微秒)")
         intro_layout.addRow("时长:", self.spin_intro_duration)
 
-        self.label_intro_seconds = QLabel("= 5.0 秒")
+        self.label_intro_seconds = CaptionLabel("= 5.0 秒")
         intro_layout.addRow("", self.label_intro_seconds)
         group_intro.addLayout(intro_layout)
         layout.addWidget(group_intro)

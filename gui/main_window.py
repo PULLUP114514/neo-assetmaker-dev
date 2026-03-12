@@ -813,13 +813,20 @@ class MainWindow(QMainWindow):
 
         # 标题
         title_label = QLabel("欢迎使用明日方舟通行证素材制作器 v2.0")
-        title_label.setStyleSheet(
-            "font-size: 20px; font-weight: bold; color: #ff6b8b; text-align: center;")
+        setCustomStyleSheet(
+            title_label,
+            "font-size: 20px; font-weight: bold; color: #ff6b8b; text-align: center;",
+            "font-size: 20px; font-weight: bold; color: #ff6b8b; text-align: center;"
+        )
         main_layout.addWidget(title_label)
 
         # 内容区域
         content_browser = QTextBrowser()
-        content_browser.setStyleSheet("font-size: 14px; line-height: 1.5;")
+        setCustomStyleSheet(
+            content_browser,
+            "font-size: 14px; line-height: 1.5;",
+            "font-size: 14px; line-height: 1.5;"
+        )
 
         # 公告内容
         announcement_content = """
@@ -1104,6 +1111,11 @@ class MainWindow(QMainWindow):
             self.json_preview.set_config(self._config, self._base_dir)
             self.video_preview.set_epconfig(self._config)
 
+            # 同步目标分辨率到所有预览组件
+            target_w, target_h = self._get_target_resolution()
+            self.video_preview.set_target_resolution(target_w, target_h)
+            self.intro_preview.set_target_resolution(target_w, target_h)
+
             # 尝试加载循环素材（延迟执行，避免阻塞UI）
             if self._config.loop.file:
                 file_path = self._config.loop.file
@@ -1183,6 +1195,11 @@ class MainWindow(QMainWindow):
             self.basic_config_panel.set_config(self._config, self._base_dir)
             self.json_preview.set_config(self._config, self._base_dir)
             self.video_preview.set_epconfig(self._config)
+
+            # 同步目标分辨率到所有预览组件
+            target_w, target_h = self._get_target_resolution()
+            self.video_preview.set_target_resolution(target_w, target_h)
+            self.intro_preview.set_target_resolution(target_w, target_h)
 
             # 延迟加载循环素材
             if self._config.loop.file:
@@ -1792,8 +1809,11 @@ class MainWindow(QMainWindow):
                 url_label = QLabel(
                     f"网站链接: <a href='https://ep.iccmc.cc'>https://ep.iccmc.cc</a>")
                 url_label.setOpenExternalLinks(True)
-                url_label.setStyleSheet(
-                    "color: #ff6b8b; text-decoration: underline;")
+                setCustomStyleSheet(
+                    url_label,
+                    "color: #ff6b8b; text-decoration: underline;",
+                    "color: #ff6b8b; text-decoration: underline;"
+                )
                 about_layout.addWidget(url_label)
 
             except Exception as e:
@@ -1832,8 +1852,11 @@ class MainWindow(QMainWindow):
                 url_label = QLabel(
                     f"网站链接: <a href='https://ep.iccmc.cc'>https://ep.iccmc.cc</a>")
                 url_label.setOpenExternalLinks(True)
-                url_label.setStyleSheet(
-                    "color: #ff6b8b; text-decoration: underline;")
+                setCustomStyleSheet(
+                    url_label,
+                    "color: #ff6b8b; text-decoration: underline;",
+                    "color: #ff6b8b; text-decoration: underline;"
+                )
                 about_layout.addWidget(url_label)
 
             # 一次性添加到内容布局
@@ -2204,6 +2227,10 @@ class MainWindow(QMainWindow):
             self.json_preview.set_config(self._config, self._base_dir)
             # 更新视频预览的叠加UI配置
             self.video_preview.set_epconfig(self._config)
+            # 同步目标分辨率到所有预览组件
+            target_w, target_h = self._get_target_resolution()
+            self.video_preview.set_target_resolution(target_w, target_h)
+            self.intro_preview.set_target_resolution(target_w, target_h)
 
     def _on_video_file_selected(self, path: str):
         """视频文件被选择"""
