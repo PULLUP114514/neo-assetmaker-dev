@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout,
     QSizePolicy
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QRect, QPoint
+from PyQt6.QtCore import Qt, pyqtSignal, QRect, QPoint, QTimer
 from PyQt6.QtGui import QPainter, QColor, QPen, QBrush, QMouseEvent, QPaintEvent
 from qfluentwidgets import (
     ToolButton, PushButton, CaptionLabel, SpinBox, setCustomStyleSheet
@@ -25,6 +25,13 @@ class TimelineSlider(QWidget):
         self._in_point = 0
         self._out_point = 100
         self._dragging = False
+
+        # 拖拽节流：防止每像素触发昂贵的 FFmpeg seek
+        self._pending_seek_frame = -1
+        self._seek_timer = QTimer(self)
+        self._seek_timer.setSingleShot(True)
+        self._seek_timer.setInterval(33)  # ~30fps
+        self._seek_timer.timeout.connect(self._emit_pending_seek)
 
         self._margin = 10
         self._track_height = 30
@@ -172,14 +179,31 @@ class TimelineSlider(QWidget):
             self.seek_requested.emit(self._x_to_frame(int(event.position().x())))
 
     def mouseMoveEvent(self, event: QMouseEvent):
-        """鼠标移动"""
+        """鼠标移动 - 节流发射 seek 信号"""
         if self._dragging:
-            self.seek_requested.emit(self._x_to_frame(int(event.position().x())))
+            frame = self._x_to_frame(int(event.position().x()))
+            # 即时更新视觉指示器（无开销）
+            self._current_frame = max(0, min(frame, self._total_frames - 1))
+            self.update()
+            # 暂存帧号，延迟发射 seek 信号
+            self._pending_seek_frame = self._current_frame
+            if not self._seek_timer.isActive():
+                self._seek_timer.start()
 
     def mouseReleaseEvent(self, event: QMouseEvent):
-        """鼠标释放"""
+        """鼠标释放 - 立即发射最终位置"""
         if event.button() == Qt.MouseButton.LeftButton:
             self._dragging = False
+            self._seek_timer.stop()
+            if self._pending_seek_frame >= 0:
+                self.seek_requested.emit(self._pending_seek_frame)
+                self._pending_seek_frame = -1
+
+    def _emit_pending_seek(self):
+        """定时器回调：发射暂存的 seek 信号"""
+        if self._pending_seek_frame >= 0:
+            self.seek_requested.emit(self._pending_seek_frame)
+            self._pending_seek_frame = -1
 
 
 class TimelineWidget(QWidget):

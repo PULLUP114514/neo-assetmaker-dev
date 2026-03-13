@@ -582,12 +582,14 @@ class VideoPreviewWidget(QWidget):
     def seek_to_frame(self, index: int):
         """跳转到指定帧"""
         if self._loop_frame is not None:
+            self.pause()
             index = max(0, min(index, self.total_frames - 1))
             self.current_frame_index = index
             self.frame_changed.emit(self.current_frame_index)
             return
         if not self._has_video or self._reader_thread is None:
             return
+        self.pause()
         index = max(0, min(index, self.total_frames - 1))
         self._reader_thread.request_seek(index)
 

@@ -460,16 +460,7 @@ class MainWindow(QMainWindow):
         self.basic_config_panel.setVisible(True)
 
         # 基础模式下，只显示循环视频标签页
-        if hasattr(self, 'preview_tabs'):
-            # 隐藏不需要的标签页
-            for i in [0, 1, 2]:  # 0:入场视频, 1:截取帧编辑, 2:过渡图片
-                if i < self.preview_tabs.count():
-                    self.preview_tabs.setTabVisible(i, False)
-            # 显示循环视频标签页
-            if 3 < self.preview_tabs.count():
-                self.preview_tabs.setTabVisible(3, True)
-            # 切换到循环视频标签页
-            self.preview_tabs.setCurrentIndex(3)
+        self._show_loop_tab_only()
 
         self.splitter.addWidget(self.config_container)
 
@@ -520,15 +511,7 @@ class MainWindow(QMainWindow):
         preview_layout.addWidget(self.preview_tabs, stretch=1)
 
         # 默认应用基础设置模式的标签页显示逻辑
-        # 隐藏不需要的标签页
-        for i in [0, 1, 2]:  # 0:入场视频, 1:截取帧编辑, 2:过渡图片
-            if i < self.preview_tabs.count():
-                self.preview_tabs.setTabVisible(i, False)
-        # 显示循环视频标签页
-        if 3 < self.preview_tabs.count():
-            self.preview_tabs.setTabVisible(3, True)
-        # 切换到循环视频标签页
-        self.preview_tabs.setCurrentIndex(3)
+        self._show_loop_tab_only()
 
         self.timeline = TimelineWidget()
         preview_layout.addWidget(self.timeline)
@@ -1490,7 +1473,17 @@ class MainWindow(QMainWindow):
             if sys.platform == 'win32':
                 popen_kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
 
-            subprocess.Popen([
+            # 设置工作目录为应用根目录，确保模拟器能找到 FFmpeg DLL
+            # Windows DLL 搜索顺序：exe 所在目录 → system32 → PATH
+            # 模拟器 exe 在 simulator/target/release/ 子目录，无法找到根目录的 DLL
+            popen_kwargs['cwd'] = app_dir
+
+            # 双保险：将 app_dir 加入 PATH 环境变量
+            env = os.environ.copy()
+            env['PATH'] = app_dir + os.pathsep + env.get('PATH', '')
+            popen_kwargs['env'] = env
+
+            proc = subprocess.Popen([
                 simulator_path,
                 "--config", config_path,
                 "--base-dir", self._base_dir,
@@ -1500,6 +1493,20 @@ class MainWindow(QMainWindow):
             ], **popen_kwargs)
 
             logger.info(f"模拟器已启动: {simulator_path}")
+
+            # 1秒后检查进程是否崩溃
+            def _check_simulator():
+                retcode = proc.poll()
+                if retcode is not None and retcode != 0:
+                    QMessageBox.warning(
+                        self, "模拟器错误",
+                        f"模拟器启动后立即退出（返回码: {retcode}）\n\n"
+                        f"可能原因：\n"
+                        f"• FFmpeg DLL 缺失或版本不匹配\n"
+                        f"• 配置文件格式错误\n\n"
+                        f"路径: {simulator_path}"
+                    )
+            QTimer.singleShot(1000, _check_simulator)
 
         except Exception as e:
             logger.error(f"启动模拟器失败: {e}")
@@ -1905,6 +1912,37 @@ class MainWindow(QMainWindow):
         mode = self.settings_mode_combo.currentData()
         self._on_settings_mode_changed(mode)
 
+    def _show_loop_tab_only(self):
+        """基础模式：仅显示循环视频标签页，修复 isSelected 残留"""
+        if not hasattr(self, 'preview_tabs'):
+            return
+        # 先切到目标标签页
+        self.preview_tabs.setCurrentIndex(3)
+        if 3 < self.preview_tabs.count():
+            self.preview_tabs.setTabVisible(3, True)
+        # 再隐藏其他标签页
+        for i in [0, 1, 2]:
+            if i < self.preview_tabs.count():
+                self.preview_tabs.setTabVisible(i, False)
+        # 强制修复 QFluentWidgets TabBar 的 isSelected 残留
+        self._fix_tab_selected_state(3)
+
+    def _show_all_tabs(self):
+        """高级模式：显示所有标签页，修复 isSelected 残留"""
+        if not hasattr(self, 'preview_tabs'):
+            return
+        for i in range(self.preview_tabs.count()):
+            self.preview_tabs.setTabVisible(i, True)
+        # 修复 isSelected 残留
+        self._fix_tab_selected_state(self.preview_tabs.tabBar._currentIndex)
+
+    def _fix_tab_selected_state(self, active_index: int):
+        """强制清理 TabBar 所有 item 的 isSelected，仅保留指定索引"""
+        tab_bar = self.preview_tabs.tabBar
+        for idx, item in enumerate(tab_bar.items):
+            item.setSelected(idx == active_index)
+        tab_bar._currentIndex = active_index
+
     def _on_settings_mode_changed(self, mode):
         """设置模式切换"""
         try:
@@ -1924,16 +1962,7 @@ class MainWindow(QMainWindow):
                 self.status_bar.showMessage("基础设置模式 - 简化界面")
 
                 # 基础模式下，只显示循环视频标签页
-                if hasattr(self, 'preview_tabs'):
-                    # 隐藏不需要的标签页
-                    for i in [0, 1, 2]:  # 0:入场视频, 1:截取帧编辑, 2:过渡图片
-                        if i < self.preview_tabs.count():
-                            self.preview_tabs.setTabVisible(i, False)
-                    # 显示循环视频标签页
-                    if 3 < self.preview_tabs.count():
-                        self.preview_tabs.setTabVisible(3, True)
-                    # 切换到循环视频标签页
-                    self.preview_tabs.setCurrentIndex(3)
+                self._show_loop_tab_only()
             elif mode == "advanced":
                 # 切换前：从基础面板同步数据到config
                 if self.basic_config_panel.isVisible():
@@ -1950,9 +1979,7 @@ class MainWindow(QMainWindow):
                 self.status_bar.showMessage("高级设置模式 - 完整界面")
 
                 # 高级模式下，显示所有标签页
-                if hasattr(self, 'preview_tabs'):
-                    for i in range(self.preview_tabs.count()):
-                        self.preview_tabs.setTabVisible(i, True)
+                self._show_all_tabs()
         except Exception as e:
             logger.error(f"设置模式切换错误: {e}")
 
@@ -2053,16 +2080,7 @@ class MainWindow(QMainWindow):
                 self.status_bar.showMessage("基础设置模式 - 简化界面")
 
             # 基础模式下，只显示循环视频标签页
-            if hasattr(self, 'preview_tabs'):
-                # 隐藏不需要的标签页
-                for i in [0, 1, 2]:  # 0:入场视频, 1:截取帧编辑, 2:过渡图片
-                    if i < self.preview_tabs.count():
-                        self.preview_tabs.setTabVisible(i, False)
-                # 显示循环视频标签页
-                if 3 < self.preview_tabs.count():
-                    self.preview_tabs.setTabVisible(3, True)
-                # 切换到循环视频标签页
-                self.preview_tabs.setCurrentIndex(3)
+            self._show_loop_tab_only()
         except Exception as e:
             logger.error(f"基础设置切换错误: {e}")
 
@@ -2083,9 +2101,7 @@ class MainWindow(QMainWindow):
                 self.status_bar.showMessage("高级设置模式 - 完整界面")
 
             # 高级模式下，显示所有标签页
-            if hasattr(self, 'preview_tabs'):
-                for i in range(self.preview_tabs.count()):
-                    self.preview_tabs.setTabVisible(i, True)
+            self._show_all_tabs()
         except Exception as e:
             logger.error(f"高级设置切换错误: {e}")
 
@@ -2783,6 +2799,9 @@ class MainWindow(QMainWindow):
         self._drop_overlay.file_dropped.connect(self._on_file_dropped)
         self._update_drop_context()
 
+        # JSON预览面板拖放导入
+        self.json_preview.json_file_dropped.connect(self._on_json_file_dropped)
+
     def _update_drop_context(self):
         """根据当前标签页更新拖放接受的文件类型和提示文字"""
         tab_index = self.preview_tabs.currentIndex()
@@ -2807,6 +2826,11 @@ class MainWindow(QMainWindow):
                 SUPPORTED_VIDEO_FORMATS + SUPPORTED_IMAGE_FORMATS,
                 "释放以导入文件"
             )
+
+    def _on_json_file_dropped(self, file_path: str):
+        """处理拖放到JSON预览面板的配置文件"""
+        logger.info(f"JSON配置文件拖放导入: {file_path}")
+        self._load_project(file_path)
 
     def _on_file_dropped(self, file_path: str, drop_pos):
         """处理拖放文件 — 根据上下文分发到对应处理逻辑"""
@@ -3316,6 +3340,25 @@ class MainWindow(QMainWindow):
             return True
         else:
             return False
+
+    def showEvent(self, event):
+        """窗口显示时设置 DWM 圆角（Windows 11）"""
+        super().showEvent(event)
+        if sys.platform == 'win32' and not getattr(self, '_dwm_corner_set', False):
+            self._dwm_corner_set = True
+            try:
+                ver = sys.getwindowsversion()
+                if ver.build >= 22000:  # Windows 11
+                    from ctypes import windll, byref, c_int
+                    DWMWA_WINDOW_CORNER_PREFERENCE = 33
+                    DWMWCP_ROUND = 2
+                    windll.dwmapi.DwmSetWindowAttribute(
+                        int(self.winId()),
+                        DWMWA_WINDOW_CORNER_PREFERENCE,
+                        byref(c_int(DWMWCP_ROUND)), 4
+                    )
+            except Exception:
+                pass
 
     def closeEvent(self, event):
         """关闭事件"""

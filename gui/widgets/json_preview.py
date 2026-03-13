@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout,
     QHBoxLayout, QFrame
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QColor, QTextCharFormat, QSyntaxHighlighter, QTextDocument
 from qfluentwidgets import (
     TextEdit, StrongBodyLabel, CaptionLabel, setCustomStyleSheet
@@ -16,6 +16,7 @@ from qfluentwidgets import (
 
 from config.epconfig import EPConfig
 from core.validator import EPConfigValidator, ValidationLevel
+from gui.widgets.drop_overlay import DropOverlayWidget
 
 
 class JsonSyntaxHighlighter(QSyntaxHighlighter):
@@ -70,6 +71,8 @@ class JsonSyntaxHighlighter(QSyntaxHighlighter):
 class JsonPreviewWidget(QWidget):
     """JSON预览组件"""
 
+    json_file_dropped = pyqtSignal(str)  # 拖放JSON文件路径
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -104,6 +107,8 @@ class JsonPreviewWidget(QWidget):
         # JSON文本框
         self.text_edit = TextEdit()
         self.text_edit.setReadOnly(True)
+        self.text_edit.setAcceptDrops(False)
+        self.text_edit.viewport().setAcceptDrops(False)
         self.text_edit.setFont(QFont("Consolas", 10))
         setCustomStyleSheet(
             self.text_edit,
@@ -143,6 +148,15 @@ class JsonPreviewWidget(QWidget):
         status_layout.addWidget(self.warning_count_label)
 
         layout.addWidget(self.status_frame)
+
+        # 拖放支持 — 接受 .json 文件导入
+        self._drop_overlay = DropOverlayWidget(self)
+        self._drop_overlay.set_context((".json",), "释放以导入配置文件")
+        self._drop_overlay.file_dropped.connect(self._on_file_dropped)
+
+    def _on_file_dropped(self, file_path: str, drop_pos):
+        """处理拖放文件 — 转发为 json_file_dropped 信号"""
+        self.json_file_dropped.emit(file_path)
 
     def set_config(self, config: EPConfig, base_dir: str = ""):
         """设置配置"""
