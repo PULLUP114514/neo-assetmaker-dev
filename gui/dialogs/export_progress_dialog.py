@@ -13,6 +13,9 @@ from qfluentwidgets import (
 class ExportProgressDialog(QDialog):
     """导出进度对话框"""
 
+    # 导出成功的信号
+    export_success_signal = pyqtSignal(bool)
+
     cancel_requested = pyqtSignal()
 
     def __init__(self, parent=None):
@@ -70,6 +73,7 @@ class ExportProgressDialog(QDialog):
 
         if success:
             self.label_status.setStyleSheet("color: green;")
+            self.export_success_signal.emit(success)
         else:
             self.label_status.setStyleSheet("color: red;")
 

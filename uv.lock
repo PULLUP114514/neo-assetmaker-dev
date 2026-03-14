@@ -774,7 +774,7 @@ wheels = [
 
 [[package]]
 name = "neo-assetmaker"
-version = "2.4.0"
+version = "2.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fido2" },
@@ -784,7 +784,6 @@ dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "opencv-python" },
-    { name = "paramiko" },
     { name = "pillow" },
     { name = "platformdirs" },
     { name = "pyqt6" },
@@ -794,6 +793,7 @@ dependencies = [
     { name = "pyusb" },
     { name = "qtpy" },
     { name = "requests" },
+    { name = "scp" },
     { name = "thefuzz" },
 ]
 
@@ -811,7 +811,6 @@ requires-dist = [
     { name = "keyring", specifier = ">=25" },
     { name = "numpy", specifier = ">=1.24.0" },
     { name = "opencv-python", specifier = ">=4.8.0" },
-    { name = "paramiko", specifier = ">=4.0.0" },
     { name = "pillow", specifier = ">=10.0.0" },
     { name = "platformdirs", specifier = ">=4" },
     { name = "pyqt6", specifier = ">=6.5.0" },
@@ -821,6 +820,7 @@ requires-dist = [
     { name = "pyusb", specifier = ">=1.2" },
     { name = "qtpy", specifier = ">=2.4" },
     { name = "requests", specifier = ">=2.32.0" },
+    { name = "scp", specifier = ">=0.15.0" },
     { name = "thefuzz", specifier = ">=0.22.0" },
 ]
 
@@ -4513,6 +4513,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/13/64/b4d76f227d5c45a7e0b796c674fd81b0a6c4fbd48dc29271857d8219571c/rpds_py-0.30.0-pp311-pypy311_pp73-musllinux_1_2_aarch64.whl", hash = "sha256:dff13836529b921e22f15cb099751209a60009731a68519630a24d61f0b1b30a", size = 573981, upload-time = "2025-11-30T20:24:32.934Z" },
     { url = "https://files.pythonhosted.org/packages/20/91/092bacadeda3edf92bf743cc96a7be133e13a39cdbfd7b5082e7ab638406/rpds_py-0.30.0-pp311-pypy311_pp73-musllinux_1_2_i686.whl", hash = "sha256:1b151685b23929ab7beec71080a8889d4d6d9fa9a983d213f07121205d48e2c4", size = 599782, upload-time = "2025-11-30T20:24:35.169Z" },
     { url = "https://files.pythonhosted.org/packages/d1/b7/b95708304cd49b7b6f82fdd039f1748b66ec2b21d6a45180910802f1abf1/rpds_py-0.30.0-pp311-pypy311_pp73-musllinux_1_2_x86_64.whl", hash = "sha256:ac37f9f516c51e5753f27dfdef11a88330f04de2d564be3991384b2f3535d02e", size = 562191, upload-time = "2025-11-30T20:24:36.853Z" },
+]
+
+[[package]]
+name = "scp"
+version = "0.15.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "paramiko" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d6/1c/d213e1c6651d0bd37636b21b1ba9b895f276e8057f882c9f944931e4f002/scp-0.15.0.tar.gz", hash = "sha256:f1b22e9932123ccf17eebf19e0953c6e9148f589f93d91b872941a696305c83f", size = 13905, upload-time = "2024-05-23T21:37:41.835Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/79/b3/561cd6afa959e9dd522af12acc4f803e8bab1bd0e383bffc5211721c5fcb/scp-0.15.0-py2.py3-none-any.whl", hash = "sha256:9e7f721e5ac563c33eb0831d0f949c6342f1c28c3bdc3b02f39d77b5ea20df7e", size = 8753, upload-time = "2024-05-23T21:37:46.226Z" },
 ]
 
 [[package]]

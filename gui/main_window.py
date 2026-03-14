@@ -694,14 +694,15 @@ class MainWindow(QMainWindow):
             self._on_capture_frame)
         self.advanced_config_panel.transition_image_changed.connect(
             self._on_transition_image_changed)
-
+        self.advanced_config_panel.ssh_upload_requested.connect(self._on_ssh_upload)
+        
         # 基础配置面板信号
         self.basic_config_panel.config_changed.connect(self._on_config_changed)
         self.basic_config_panel.video_file_selected.connect(
             self._on_video_file_selected)
         self.basic_config_panel.validate_requested.connect(self._on_validate)
         self.basic_config_panel.export_requested.connect(self._on_export)
-
+        self.basic_config_panel.ssh_upload_requested.connect(self._on_ssh_upload)
         # 截取帧编辑 - 保存图标按钮
         self.btn_save_icon.clicked.connect(self._on_save_captured_icon)
 
@@ -743,6 +744,30 @@ class MainWindow(QMainWindow):
         # 入点/出点设置
         self.timeline.set_in_point_clicked.connect(self._on_set_in_point)
         self.timeline.set_out_point_clicked.connect(self._on_set_out_point)
+
+    def _on_ssh_upload(self):
+        """SSH上传"""
+        try:
+            _export_dialog, dir_path = self._on_export()
+            if not _export_dialog.export_success_signal:
+                print("导出失败，取消SSH上传")
+                return
+            if not os.path.exists(dir_path):
+                print("导出目录不存在，取消SSH上传")
+                return
+            settings = self._read_user_settings()
+            host = settings.get('ssh_ip_address',"192.168.137.2")
+            port = settings.get('ssh_port', 22)
+            user = settings.get('ssh_user', "root")
+            password = settings.get('ssh_password', "toor")
+            remote_path = settings.get('ssh_default_upload_path', "/assets/")
+            enableRestart = settings.get('ssh_auto_restart_program', True)
+            from core.sshAutoUpload import ssh_auto_upload
+            ssh_auto_upload(host, port, user, password, dir_path, remote_path, enableRestart)
+        except Exception as e:
+            print("发生错误:", e)
+            return
+        return
 
     def _load_settings(self):
         """加载设置"""
@@ -1443,6 +1468,7 @@ class MainWindow(QMainWindow):
 
         # 显示进度对话框
         self._export_dialog.exec()
+        return self._export_dialog, dir_path
 
     def _on_simulator(self):
         """打开模拟器预览"""

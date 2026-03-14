@@ -331,7 +331,7 @@ class SettingsPage(QWidget):
             
             # SSH 自动上传设置
             self.sshIpAddressCard.setText(
-                settings.get('ssh_ip_address',"192.168.137.2")
+                settings.get('z',"192.168.137.2")
             )
             self.sshPortCard.setText(
                 settings.get('ssh_port', "22")
