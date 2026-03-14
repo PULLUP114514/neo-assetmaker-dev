@@ -388,50 +388,85 @@ class MainWindow(QMainWindow):
         self.btn_operations.setFixedHeight(34)
 
         operations_menu = RoundMenu(parent=self)
+        # Ensure the menu is wide enough so long shortcut labels aren't truncated
+        operations_menu.setFixedWidth(500)
 
         # 文件操作
         operations_menu.addAction(
-            Action(FluentIcon.DOCUMENT, "新建项目\tCtrl+N",
-                   triggered=self._on_new_project))
+            Action(
+                FluentIcon.DOCUMENT,
+                "新建项目",
+                shortcut="Ctrl+N",
+                triggered=self._on_new_project
+            )
+        )
         operations_menu.addAction(
-            Action(FluentIcon.FOLDER, "打开项目\tCtrl+O",
-                   triggered=self._on_open_project))
+            Action(
+                FluentIcon.FOLDER,
+                "打开项目",
+                shortcut="Ctrl+O",
+                triggered=self._on_open_project
+            )
+        )
         operations_menu.addAction(
-            Action(FluentIcon.SAVE, "保存\tCtrl+S",
-                   triggered=self._on_save_project))
+            Action(
+                FluentIcon.SAVE,
+                "保存",
+                shortcut="Ctrl+S",
+                triggered=self._on_save_project
+            )
+        )
         operations_menu.addAction(
-            Action(FluentIcon.SAVE_AS, "另存为\tCtrl+Shift+S",
-                   triggered=self._on_save_as))
+            Action(
+                FluentIcon.SAVE_AS,
+                "另存为",
+                shortcut="Ctrl+Shift+S",
+                triggered=self._on_save_as
+            )
+        )
 
         operations_menu.addSeparator()
 
         # 编辑操作
         self.menu_action_undo = Action(
-            FluentIcon.RETURN, "撤销\tCtrl+Z",
-            triggered=self._on_undo)
+            FluentIcon.RETURN,
+            "撤销",
+            shortcut="Ctrl+Z",
+            triggered=self._on_undo
+        )
         self.menu_action_undo.setEnabled(False)
         operations_menu.addAction(self.menu_action_undo)
 
         self.menu_action_redo = Action(
-            FluentIcon.RIGHT_ARROW, "重做\tCtrl+Shift+Z",
-            triggered=self._on_redo)
+            FluentIcon.RIGHT_ARROW,
+            "重做",
+            shortcut="Ctrl+Shift+Z",
+            triggered=self._on_redo
+        )
         self.menu_action_redo.setEnabled(False)
         operations_menu.addAction(self.menu_action_redo)
-
         operations_menu.addSeparator()
 
         # 帮助
         operations_menu.addAction(
-            Action(FluentIcon.HELP, "快捷键帮助\tF1",
-                   triggered=self._on_shortcuts))
-
+            Action(
+                FluentIcon.HELP,
+                "快捷键帮助",
+                shortcut="F1",
+                triggered=self._on_shortcuts
+            )
+        )
         operations_menu.addSeparator()
 
         # 退出
         operations_menu.addAction(
-            Action(FluentIcon.POWER_BUTTON, "退出\tCtrl+Q",
-                   triggered=self.close))
-
+            Action(
+                FluentIcon.POWER_BUTTON,
+                "退出",
+                shortcut="Ctrl+Q",
+                triggered=self.close
+            )
+        )
         self.btn_operations.setMenu(operations_menu)
         toolbar_layout.addWidget(self.btn_operations)
 
