@@ -69,11 +69,18 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.10.9"
 
       - name: Install dependencies
+        shell: bash
         run: |
           uv sync --group dev
-          uv run python -c "import PyQt6; print(f'PyQt6 installed at: {PyQt6.__file__}')"
+          if ! uv run --no-sync python -c "import OpenGL; print('PyOpenGL OK')"; then
+            echo "::warning::PyOpenGL not found after uv sync, installing via uv pip..."
+            uv pip install "PyOpenGL>=3.1.0"
+            uv run --no-sync python -c "import OpenGL; print('PyOpenGL OK (fallback)')"
+          fi
 
       - name: Cache FFmpeg
         id: cache-ffmpeg
@@ -103,7 +110,7 @@ jobs:
         shell: pwsh
 
       - name: Build with cx_Freeze and Inno Setup
-        run: uv run python build.py --skip-flasher
+        run: uv run --no-sync python build.py --skip-flasher
         env:
           # qfluentwidgets 等第三方库触发的 SyntaxWarning
           PYTHONWARNINGS: "ignore::SyntaxWarning"
