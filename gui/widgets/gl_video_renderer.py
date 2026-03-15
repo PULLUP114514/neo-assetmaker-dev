@@ -293,6 +293,7 @@ class GLVideoWidget(QOpenGLWidget):
         if self._gl_failed or _GL is None:
             return
         _GL.glViewport(0, 0, w, h)
+        self._update_mvp()
         self._update_display_rect()
 
     def paintGL(self):
@@ -331,9 +332,14 @@ class GLVideoWidget(QOpenGLWidget):
         """上传 YUV420P 帧 (主线程调用)"""
         self._yuv_data = (y_data, u_data, v_data, width, height)
         self._use_yuv = True
+        size_changed = (self._video_width != width
+                        or self._video_height != height)
         self._video_width = width
         self._video_height = height
         self._frame_dirty = True
+        if size_changed:
+            self._update_mvp()
+            self._update_display_rect()
         self.update()
 
     def upload_bgr_frame(self, bgr_array: np.ndarray):
@@ -343,9 +349,14 @@ class GLVideoWidget(QOpenGLWidget):
         h, w = rgb.shape[:2]
         self._rgb_data = (rgb, w, h)
         self._use_yuv = False
+        size_changed = (self._video_width != w
+                        or self._video_height != h)
         self._video_width = w
         self._video_height = h
         self._frame_dirty = True
+        if size_changed:
+            self._update_mvp()
+            self._update_display_rect()
         self.update()
 
     def upload_rgb_frame(self, rgb_array: np.ndarray):
@@ -353,9 +364,14 @@ class GLVideoWidget(QOpenGLWidget):
         h, w = rgb_array.shape[:2]
         self._rgb_data = (rgb_array.copy(), w, h)
         self._use_yuv = False
+        size_changed = (self._video_width != w
+                        or self._video_height != h)
         self._video_width = w
         self._video_height = h
         self._frame_dirty = True
+        if size_changed:
+            self._update_mvp()
+            self._update_display_rect()
         self.update()
 
     def set_rotation(self, degrees: int):
@@ -917,38 +933,64 @@ class GLVideoWidget(QOpenGLWidget):
         self._cropbox_program.release()
 
     def _update_mvp(self):
-        """更新 MVP 矩阵（含旋转和宽高比校正）"""
+        """更新 MVP 矩阵（含旋转和宽高比校正）
+
+        之前的实现：deg==0 时直接返回 identity 矩阵，导致全屏四边形
+        被非等比拉伸填满 widget（视频变形）。90/270 度的宽高比校正
+        也不正确（仅考虑视频自身比例，未与 widget 比例联合计算）。
+
+        修复：对所有旋转角度统一计算 letterbox 缩放。
+        参考 OpenGL 规范：NDC -1..1 通过 viewport transform 映射到
+        window coordinates，必须在 MVP 中主动校正宽高比。
+        https://www.khronos.org/opengl/wiki/Vertex_Post-Processing
+        """
         self._mvp_matrix = QMatrix4x4()
         self._mvp_matrix.setToIdentity()
 
-        deg = self._rotation_degrees
-        if deg == 0:
+        vw, vh = self._video_width, self._video_height
+        ww, wh = self.width(), max(self.height(), 1)
+
+        if vw <= 0 or vh <= 0:
             return
 
-        # 对正交角度，通过纹理坐标处理更高效
-        # 但为了统一处理，这里用矩阵旋转
-        # 旋转
-        self._mvp_matrix.rotate(-deg, 0.0, 0.0, 1.0)
+        deg = self._rotation_degrees
 
-        # 对 90/270 度，需要交换宽高比
-        if deg in (90, 270) and self._video_width > 0 and self._video_height > 0:
-            aspect = self._video_width / self._video_height
-            widget_aspect = self.width() / max(self.height(), 1)
-            # 旋转后视频宽高比反转
-            if widget_aspect > 0:
-                scale = min(1.0, 1.0 / aspect) if aspect > 1 else min(1.0, aspect)
-                self._mvp_matrix.scale(
-                    self._video_height / self._video_width,
-                    self._video_width / self._video_height,
-                    1.0)
-
-        # 任意角度需要缩放以适应视口
-        if deg not in (0, 90, 180, 270):
+        # 计算旋转后视频尺寸
+        if deg in (90, 270):
+            rvw, rvh = float(vh), float(vw)
+        elif deg in (0, 180):
+            rvw, rvh = float(vw), float(vh)
+        else:
             rad = math.radians(deg)
             cos_a = abs(math.cos(rad))
             sin_a = abs(math.sin(rad))
-            scale = 1.0 / (cos_a + sin_a)
-            self._mvp_matrix.scale(scale, scale, 1.0)
+            rvw = vw * cos_a + vh * sin_a
+            rvh = vw * sin_a + vh * cos_a
+
+        # 宽高比校正（letterbox）
+        video_aspect = rvw / rvh
+        widget_aspect = ww / wh
+        if widget_aspect > video_aspect:
+            # widget 更宽 → 左右留黑边
+            sx = video_aspect / widget_aspect
+            sy = 1.0
+        else:
+            # widget 更高 → 上下留黑边
+            sx = 1.0
+            sy = widget_aspect / video_aspect
+
+        # 非正交角度额外缩放以适应旋转后的包围盒
+        if deg not in (0, 90, 180, 270):
+            bbox_scale = 1.0 / (cos_a + sin_a)
+            sx *= bbox_scale
+            sy *= bbox_scale
+
+        # Qt QMatrix4x4 运算顺序：m.op1(); m.op2() → M = op1 * op2
+        # 顶点: pos' = M * pos = op1 * (op2 * pos)，op2 先作用于顶点
+        # 需要：先旋转顶点，再缩放 → scale 在 API 中先调用
+        self._mvp_matrix.scale(sx, sy, 1.0)
+        if deg != 0:
+            self._mvp_matrix.rotate(-deg, 0.0, 0.0, 1.0)
 
     def _update_display_rect(self):
         """更新视频在 widget 内的显示区域（用于坐标转换）"""

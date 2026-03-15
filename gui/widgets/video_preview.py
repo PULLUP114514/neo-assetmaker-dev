@@ -460,19 +460,28 @@ class VideoPreviewWidget(QWidget):
         self._display_frame(frame)
 
     def _init_cropbox(self):
-        """初始化裁剪框（在旋转后坐标系中，视频坐标空间）"""
+        """初始化裁剪框（在旋转后坐标系中，视频坐标空间）
+
+        之前的实现：裁剪框初始化为最大可能尺寸（填满视频的某个维度），
+        导致在该维度上没有移动空间（例如 16:9→9:16 时垂直方向无法移动）。
+
+        修复：初始化为最大尺寸的 75%，居中放置，四周留出移动空间。
+        用户可以拖动角落放大到最大尺寸，也可以缩小。
+        """
         rotated_w, rotated_h = self._get_rotated_video_size()
         target_ratio = self.target_aspect_ratio
 
-        # 在视频坐标空间中找到最大的、符合目标宽高比的裁剪区域
+        # 计算最大的、符合目标宽高比的裁剪区域
         if rotated_w / rotated_h > target_ratio:
-            # 视频更宽 → 高度填满，宽度按比例裁剪
-            crop_h = rotated_h
-            crop_w = int(crop_h * target_ratio)
+            max_h = rotated_h
+            max_w = int(max_h * target_ratio)
         else:
-            # 视频更高 → 宽度填满，高度按比例裁剪
-            crop_w = rotated_w
-            crop_h = int(crop_w / target_ratio)
+            max_w = rotated_w
+            max_h = int(max_w / target_ratio)
+
+        # 初始化为最大尺寸的 75%，留出移动空间
+        crop_w = int(max_w * 0.75)
+        crop_h = int(crop_w / target_ratio)
 
         # 居中放置裁剪框
         x = (rotated_w - crop_w) // 2
