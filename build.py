@@ -99,6 +99,28 @@ def find_inno_setup():
 
 
 
+def _diagnose_build_env():
+    """打印构建环境诊断信息，便于 CI 调试"""
+    import importlib.util
+    import sysconfig as _sc
+
+    print("\n--- Build Environment ---")
+    print(f"  Python: {sys.version}")
+    print(f"  Platform: {sys.platform}")
+    print(f"  Executable: {sys.executable}")
+    print(f"  purelib: {_sc.get_path('purelib')}")
+    print(f"  platlib: {_sc.get_path('platlib')}")
+    print(f"  sys.path ({len(sys.path)} entries):")
+    for i, p in enumerate(sys.path):
+        print(f"    [{i}] {p}")
+    # 关键包定位
+    for pkg in ("OpenGL", "PyQt6", "cx_Freeze"):
+        spec = importlib.util.find_spec(pkg)
+        status = spec.origin if spec else "NOT FOUND"
+        print(f"  {pkg}: {status}")
+    print("--- End ---\n")
+
+
 def check_requirements():
     """检查构建环境"""
     print("Checking build environment...")
@@ -156,6 +178,9 @@ def run_cxfreeze(skip_flasher=False):
         sys.path.insert(0, project_root)
     print(f"Project root: {project_root}")
 
+    # 输出构建环境诊断信息
+    _diagnose_build_env()
+
     # 验证关键模块可被发现 — 使用 PathFinder（cx_Freeze 使用的机制）
     # cx_Freeze finder.py:382-383 使用 importlib.machinery.PathFinder.find_spec(name, path)
     # 而非 importlib.util.find_spec（后者使用 sys.meta_path hooks，结果可能不同）
@@ -175,6 +200,44 @@ def run_cxfreeze(skip_flasher=False):
             print(f"  Directory listing: {os.listdir(search_path[0])}")
             return False
         print(f"  PathFinder check: {mod_name} -> {spec.origin}")
+
+    # ── 构建 cx_Freeze 模块搜索路径 ──
+    # cx_Freeze 只使用 PathFinder（finder.py:382-383），不使用 sys.meta_path。
+    # 必须显式包含 site-packages，否则 uv/conda 等环境中第三方包可能找不到。
+    import sysconfig as _sc
+    search_paths = [project_root] + list(sys.path)
+    for extra in [_sc.get_path('purelib'), _sc.get_path('platlib')]:
+        if extra and os.path.isdir(extra) and extra not in search_paths:
+            search_paths.insert(1, extra)
+            print(f"  Added site-packages to search path: {extra}")
+
+    # 最终防御：用 importlib.util.find_spec 定位关键包
+    # importlib.util.find_spec 使用完整的 sys.meta_path（包括 uv 的自定义 finder）
+    # PathFinder.find_spec 只搜索给定的 path 列表
+    import importlib.util as _ilu
+    for pkg_name in ("OpenGL",):
+        _pf_spec = importlib.machinery.PathFinder.find_spec(pkg_name, search_paths)
+        if _pf_spec is None:
+            _util_spec = _ilu.find_spec(pkg_name)
+            if _util_spec and _util_spec.submodule_search_locations:
+                _parent = os.path.dirname(_util_spec.submodule_search_locations[0])
+                if _parent not in search_paths:
+                    search_paths.insert(1, _parent)
+                    print(f"  Fallback: added {_parent} for {pkg_name}")
+            elif _util_spec and _util_spec.origin:
+                _parent = os.path.dirname(os.path.dirname(_util_spec.origin))
+                if _parent not in search_paths:
+                    search_paths.insert(1, _parent)
+                    print(f"  Fallback: added {_parent} for {pkg_name}")
+
+    # 验证关键第三方包可被 PathFinder 发现（与 cx_Freeze 相同的机制）
+    for pkg_name in ("OpenGL", "PyQt6"):
+        importlib.machinery.PathFinder.invalidate_caches()
+        pf_spec = importlib.machinery.PathFinder.find_spec(pkg_name, search_paths)
+        if pf_spec:
+            print(f"  PathFinder check: {pkg_name} -> {pf_spec.origin}")
+        else:
+            print(f"  WARNING: PathFinder cannot find {pkg_name} in search_paths")
 
     # 预编译检查：使用与 cx_Freeze 相同的 optimize 级别（finder.py:446-448）
     main_window_path = os.path.join(project_root, "gui", "main_window.py")
@@ -332,7 +395,7 @@ def run_cxfreeze(skip_flasher=False):
         "include_files": include_files,
         "optimize": 2,
         "build_exe": BUILD_DIR,
-        "path": [project_root] + sys.path,
+        "path": search_paths,
     }
 
     # Windows 上使用 "gui" base 避免出现控制台窗口（cx_Freeze 7.0+ 用 "gui" 替代了旧的 "Win32GUI"）
@@ -364,7 +427,12 @@ def run_cxfreeze(skip_flasher=False):
             os.remove(license_file)
         return True
     except Exception as e:
-        print(f"Build failed: {e}")
+        import traceback
+        print(f"\nBuild failed: {e}")
+        traceback.print_exc()
+        print(f"\nSearch paths ({len(search_paths)}):")
+        for i, p in enumerate(search_paths):
+            print(f"  [{i}] {p}")
         return False
 
 
