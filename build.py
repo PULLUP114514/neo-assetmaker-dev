@@ -114,7 +114,7 @@ def _diagnose_build_env():
     for i, p in enumerate(sys.path):
         print(f"    [{i}] {p}")
     # 关键包定位
-    for pkg in ("OpenGL", "PyQt6", "cx_Freeze"):
+    for pkg in ("OpenGL", "av", "cv2", "PyQt6", "cx_Freeze", "numpy"):
         spec = importlib.util.find_spec(pkg)
         status = spec.origin if spec else "NOT FOUND"
         print(f"  {pkg}: {status}")
@@ -232,7 +232,8 @@ def run_cxfreeze(skip_flasher=False):
 
     # 验证关键第三方包可被 PathFinder 发现（与 cx_Freeze 相同的机制）
     _missing_critical = []
-    for pkg_name in ("OpenGL", "PyQt6"):
+    _pip_names = {"OpenGL": "PyOpenGL", "cv2": "opencv-python"}
+    for pkg_name in ("OpenGL", "av", "cv2", "PyQt6"):
         importlib.machinery.PathFinder.invalidate_caches()
         pf_spec = importlib.machinery.PathFinder.find_spec(pkg_name, search_paths)
         if pf_spec:
@@ -240,7 +241,7 @@ def run_cxfreeze(skip_flasher=False):
         else:
             _fallback = _ilu.find_spec(pkg_name)
             if _fallback is None:
-                _pip_name = "PyOpenGL" if pkg_name == "OpenGL" else pkg_name
+                _pip_name = _pip_names.get(pkg_name, pkg_name)
                 print(f"  FATAL: {pkg_name} is NOT INSTALLED")
                 print(f"         Run: uv pip install {_pip_name}")
                 _missing_critical.append(pkg_name)

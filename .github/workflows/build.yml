@@ -76,10 +76,11 @@ jobs:
         shell: bash
         run: |
           uv sync --group dev
-          if ! uv run --no-sync python -c "import OpenGL; print('PyOpenGL OK')"; then
-            echo "::warning::PyOpenGL not found after uv sync, installing via uv pip..."
-            uv pip install "PyOpenGL>=3.1.0"
-            uv run --no-sync python -c "import OpenGL; print('PyOpenGL OK (fallback)')"
+          if ! uv run --no-sync python -c "import OpenGL, av, cv2, PyQt6, numpy; print('All packages OK')"; then
+            echo "::warning::Some packages missing after uv sync, reinstalling via uv pip..."
+            uv export --group dev --no-hashes -o /tmp/requirements.txt
+            uv pip install -r /tmp/requirements.txt
+            uv run --no-sync python -c "import OpenGL, av, cv2, PyQt6, numpy; print('All packages OK (fallback)')"
           fi
 
       - name: Cache FFmpeg
