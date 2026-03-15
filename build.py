@@ -296,7 +296,9 @@ def run_cxfreeze(skip_flasher=False):
         "PyQt6", "PyQt6.QtCore", "PyQt6.QtGui", "PyQt6.QtWidgets",
         "PyQt6.QtOpenGLWidgets", "PyQt6.QtOpenGL",
         "qfluentwidgets",
-        "av",
+        # av (PyAV) 不放在 packages 中 — cx_Freeze 7.2.10 的 PathFinder.find_spec
+        # 无法定位 PyAV 17+ 的 abi3 C 扩展包（finder.py:383 返回 None）。
+        # 改为通过 include_files 手动复制 av/ 和 av.libs/ 目录。
         # PyOpenGL 不放在 packages 中 — packages 会触发 cx_Freeze 的
         # _import_all_sub_modules() 递归扫描整个 OpenGL/ 目录(2800+ 文件),
         # 任何子模块加载失败都会导致 ImportError 中止构建。
@@ -370,6 +372,21 @@ def run_cxfreeze(skip_flasher=False):
         include_files.append(("ffmpeg.exe", "ffmpeg.exe"))
     if os.path.exists("ffprobe.exe"):
         include_files.append(("ffprobe.exe", "ffprobe.exe"))
+
+    # av (PyAV): 手动包含，绕过 cx_Freeze PathFinder（参见 packages 列表中的注释）
+    # include_files 在 freezer.py:117 process_path_specs 中处理，直接复制目录，
+    # 不经过 PathFinder.find_spec，冻结应用的 lib/ 目录在运行时会被加入 sys.path。
+    av_pkg_dir = os.path.join(site_packages, "av")
+    if os.path.isdir(av_pkg_dir):
+        include_files.append((av_pkg_dir, "lib/av"))
+        print(f"  Including av package: {av_pkg_dir}")
+    else:
+        print(f"  WARNING: av package not found at {av_pkg_dir}")
+    # av.libs 包含 FFmpeg DLL（Windows delvewheel 打包，cx_Freeze hooks/av.py:26 原本处理）
+    av_libs_dir = os.path.join(site_packages, "av.libs")
+    if os.path.isdir(av_libs_dir):
+        include_files.append((av_libs_dir, "lib/av.libs"))
+        print(f"  Including av.libs: {av_libs_dir}")
 
     # 添加 Rust 模拟器
     simulator_exe = os.path.join("simulator", "target", "release", "arknights_pass_simulator.exe")
