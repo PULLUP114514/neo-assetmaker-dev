@@ -66,6 +66,7 @@ class RemotePage(QWidget):
         # 标题
         self.titleLabel = SubtitleLabel("远程管理", self)
         self.titleLabel.setContentsMargins(30, 0, 0, 0)
+        self.titleLabel.setFixedHeight(30)
         self.mainLayout.addWidget(self.titleLabel)
         self.mainLayout.addSpacing(10)
 
@@ -414,17 +415,11 @@ class RemotePage(QWidget):
     # ─── 素材选中 ────────────────────────────────────────
 
     def _on_asset_selected(self, current, previous):
-        has_selection = current is not None and (current.flags() & Qt.ItemFlag.ItemIsSelectable)
-
-        if not self._is_busy:
-            self.btnDelete.setEnabled(has_selection)
-            self.btnDownload.setEnabled(has_selection)
-            self.btnEdit.setEnabled(has_selection)
-
+        has_selection = current is not None and (current.flags() )
         if has_selection:
-            name = current.text()
-            self.previewNameLabel.setText(f"正在预览: {name}")
-            self._load_preview(name)
+            uuid = current.data(Qt.ItemDataRole.UserRole)["uuid"]
+            self.previewNameLabel.setText(f"正在预览: {uuid}")
+            self._load_preview(uuid)
         else:
             self.previewNameLabel.setText("")
             self.previewLabel.setPixmap(QPixmap())
@@ -432,21 +427,33 @@ class RemotePage(QWidget):
 
     def _get_selected_asset_name(self) -> str:
         item = self.remoteAssetList.currentItem()
-        if item and (item.flags() & Qt.ItemFlag.ItemIsSelectable):
+        if item and (item.flags()):
             return item.text()
         return ""
 
     # ─── 预览 ────────────────────────────────────────────
 
-    def _load_preview(self, asset_name: str):
-        host, port, user, password, remote_path = self._get_ssh_params()
+    def _load_preview(self, asset_uuid: str):
+        pixmap  = QPixmap()
+        try:
+            localPath = os.path.join(os.getcwd(), "tmp", asset_uuid)
+            if not os.path.exists(localPath):
+                return
+            # 直接从本地临时目录加载预览图
+            from core.ssh_upload_service import GetJsonFatherKey
+            iconPath = GetJsonFatherKey(os.path.join(localPath, f"epconfig.json"), "icon")
+            pixmap.load(os.path.join(localPath, iconPath))
+            scaled = pixmap.scaled(
+                self.previewLabel.size(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
 
-        from core.ssh_upload_service import SshPreviewWorker
-        self._preview_worker = SshPreviewWorker(parent=self)
-        self._preview_worker.setup(host, port, user, password, remote_path, asset_name)
-        self._preview_worker.preview_ready.connect(self._on_preview_ready)
-        self._preview_worker.preview_failed.connect(self._on_preview_failed)
-        self._preview_worker.start()
+        except Exception as e:
+            self._log("ERROR", f"加载预览失败: {e}")
+            return
+        self.previewLabel.setPixmap(scaled)
+        self.previewLabel.setText("")
 
     def _on_preview_ready(self, data: bytes):
         pixmap = QPixmap()

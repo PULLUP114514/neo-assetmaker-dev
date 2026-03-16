@@ -4,7 +4,7 @@ import os
 import threading
 import logging
 from typing import Optional
-
+import glob
 import paramiko
 import socket
 from scp import SCPClient
@@ -23,6 +23,17 @@ def _create_ssh_client(host: str, port: int, user: str, password: str) -> parami
     ssh.connect(host, port=port, username=user, password=password,
                 timeout=10, banner_timeout=10, auth_timeout=10)
     return ssh
+
+def GetJsonFatherKey(jsonPath, key):
+    import json
+    try:
+        with open(jsonPath, "r", encoding="utf-8") as f:
+            cache = f.read()
+            data = json.loads(cache)
+            return data.get(key)
+    except Exception as e:
+        logger.error(f"读取JSON文件失败: {e}")
+        return None
 
 
 class SshUploadWorker(QThread):
@@ -137,7 +148,7 @@ class SshConnectTestWorker(QThread):
 class SshRemoteListWorker(QThread):
     """SSH 远程素材列表获取工作线程"""
 
-    list_completed = pyqtSignal(list)  # [{name, size, date}]
+    list_completed = pyqtSignal(list)  # [{name, size, date, UUID}]
     list_failed = pyqtSignal(str)
     log_message = pyqtSignal(str, str)
 
@@ -149,6 +160,7 @@ class SshRemoteListWorker(QThread):
         self._args = (host, port, user, password, remote_path)
 
     def run(self):
+
         if not self._args:
             self.list_failed.emit("参数不足")
             return
@@ -157,55 +169,69 @@ class SshRemoteListWorker(QThread):
         try:
             self.log_message.emit("INFO", "正在获取远程素材列表...")
             ssh = _create_ssh_client(host, port, user, password)
-
-            # 列出子目录: 名称, 大小(du), 修改日期
-            cmd = (
-                f"for d in {remote_path}/*/; do "
-                f"[ -d \"$d\" ] && "
-                f"name=$(basename \"$d\") && "
-                f"size=$(du -sh \"$d\" 2>/dev/null | cut -f1) && "
-                f"mtime=$(stat -c '%Y' \"$d\" 2>/dev/null || stat -f '%m' \"$d\" 2>/dev/null) && "
-                f"echo \"$name|$size|$mtime\"; "
-                f"done"
-            )
-            stdin, stdout, stderr = ssh.exec_command(cmd, timeout=15)
-            output = stdout.read().decode("utf-8", errors="replace").strip()
-            err = stderr.read().decode("utf-8", errors="replace").strip()
-
+            from core.sshOperation import RefreshRemoteMaterialListCache
+            RefreshRemoteMaterialListCache(ssh)
+            localPath = os.path.join(os.getcwd(), "tmp")
+            pattern = os.path.join(localPath, "**", "*.json")
+            jsonFilePaths = glob.glob(pattern, recursive=True)
+            self.log_message.emit("INFO", f"找到 {len(jsonFilePaths)} 个素材包")
             items = []
-            if output:
-                for line in output.splitlines():
-                    parts = line.split("|", 2)
-                    if len(parts) == 3:
-                        name, size, mtime = parts
-                        # 转换 unix 时间戳为可读日期
-                        try:
-                            import datetime
-                            dt = datetime.datetime.fromtimestamp(int(mtime))
-                            date_str = dt.strftime("%Y-%m-%d %H:%M")
-                        except (ValueError, OSError):
-                            date_str = mtime
-                        items.append({"name": name, "size": size, "date": date_str})
-
-            self.log_message.emit("INFO", f"找到 {len(items)} 个素材包")
+            for path in jsonFilePaths:
+                items.append({"name": GetJsonFatherKey(path, "name"), "size": 0, "date": 0, "uuid": GetJsonFatherKey(path, "uuid")})
             self.list_completed.emit(items)
-
-        except socket.timeout:
-            self.log_message.emit("ERROR", "连接超时")
-            self.list_failed.emit("连接超时")
-        except paramiko.ssh_exception.AuthenticationException:
-            self.log_message.emit("ERROR", "SSH 认证失败")
-            self.list_failed.emit("SSH 认证失败")
         except Exception as e:
-            logger.exception("获取远程列表失败")
-            self.log_message.emit("ERROR", f"获取列表失败: {e}")
+            self.log_message.emit("ERROR", f"获取远程素材列表失败: {e}")
             self.list_failed.emit(str(e))
-        finally:
-            if ssh:
-                try:
-                    ssh.close()
-                except Exception:
-                    pass
+            return
+
+        #     # 列出子目录: 名称, 大小(du), 修改日期
+        #     cmd = (
+        #         f"for d in {remote_path}/*/; do "
+        #         f"[ -d \"$d\" ] && "
+        #         f"name=$(basename \"$d\") && "
+        #         f"size=$(du -sh \"$d\" 2>/dev/null | cut -f1) && "
+        #         f"mtime=$(stat -c '%Y' \"$d\" 2>/dev/null || stat -f '%m' \"$d\" 2>/dev/null) && "
+        #         f"echo \"$name|$size|$mtime\"; "
+        #         f"done"
+        #     )
+        #     stdin, stdout, stderr = ssh.exec_command(cmd, timeout=15)
+        #     output = stdout.read().decode("utf-8", errors="replace").strip()
+        #     err = stderr.read().decode("utf-8", errors="replace").strip()
+
+        #     items = []
+        #     if output:
+        #         for line in output.splitlines():
+        #             parts = line.split("|", 2)
+        #             if len(parts) == 3:
+        #                 name, size, mtime = parts
+        #                 # 转换 unix 时间戳为可读日期
+        #                 try:
+        #                     import datetime
+        #                     dt = datetime.datetime.fromtimestamp(int(mtime))
+        #                     date_str = dt.strftime("%Y-%m-%d %H:%M")
+        #                 except (ValueError, OSError):
+        #                     date_str = mtime
+        #                 items.append({"name": name, "size": size, "date": date_str})
+
+        #     self.log_message.emit("INFO", f"找到 {len(items)} 个素材包")
+        #     self.list_completed.emit(items)
+
+        # except socket.timeout:
+        #     self.log_message.emit("ERROR", "连接超时")
+        #     self.list_failed.emit("连接超时")
+        # except paramiko.ssh_exception.AuthenticationException:
+        #     self.log_message.emit("ERROR", "SSH 认证失败")
+        #     self.list_failed.emit("SSH 认证失败")
+        # except Exception as e:
+        #     logger.exception("获取远程列表失败")
+        #     self.log_message.emit("ERROR", f"获取列表失败: {e}")
+        #     self.list_failed.emit(str(e))
+        # finally:
+        #     if ssh:
+        #         try:
+        #             ssh.close()
+        #         except Exception:
+        #             pass
 
 
 class SshDeleteWorker(QThread):
@@ -335,43 +361,27 @@ class SshPreviewWorker(QThread):
         super().__init__(parent)
         self._args = None
 
-    def setup(self, host: str, port: int, user: str, password: str,
-              remote_path: str, target_name: str):
-        self._args = (host, port, user, password, remote_path, target_name)
-
     def run(self):
-        if not self._args:
-            self.preview_failed.emit("参数不足")
-            return
-        host, port, user, password, remote_path, target_name = self._args
-        ssh = None
         try:
-            ssh = _create_ssh_client(host, port, user, password)
-            sftp = ssh.open_sftp()
-
-            asset_dir = f"{remote_path.rstrip('/')}/{target_name}"
+            GetJsonFatherKey()
+            # ssh = _create_ssh_client(host, port, user, password)
+            # sftp = ssh.open_sftp()
+            # asset_dir = f"{remote_path.rstrip('/')}/{target_name}"
             # 尝试查找图片文件
-            image_exts = ('.png', '.jpg', '.jpeg', '.bmp', '.webp')
-            files = sftp.listdir(asset_dir)
-            image_file = None
-            for f in files:
-                if f.lower().endswith(image_exts):
-                    image_file = f
-                    break
+            # image_exts = ('.png', '.jpg', '.jpeg', '.bmp', '.webp')
+            # files = sftp.listdir(asset_dir)
+            # image_file = None
+            # for f in files:
+            #     if f.lower().endswith(image_exts):
+            #         image_file = f
+            #         break
 
-            if image_file:
-                import io
-                with sftp.open(f"{asset_dir}/{image_file}", "rb") as remote_f:
-                    data = remote_f.read()
-                self.preview_ready.emit(data)
-            else:
-                self.preview_failed.emit("无图片文件")
-
+            # if image_file:
+            #     import io
+            #     with sftp.open(f"{asset_dir}/{image_file}", "rb") as remote_f:
+            #         data = remote_f.read()
+            #     self.preview_ready.emit(data)
+            # else:
+            #     self.preview_failed.emit("无图片文件")
         except Exception as e:
             self.preview_failed.emit(str(e))
-        finally:
-            if ssh:
-                try:
-                    ssh.close()
-                except Exception:
-                    pass

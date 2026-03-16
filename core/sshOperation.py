@@ -30,7 +30,6 @@ def RefreshRemoteMaterialListCache(ssh):
     '''刷新通行证上的素材列表'''
 
     from core.sshAutoUpload import FindUUIDInJson
-
     # 清空tmp目录
     localPath = os.path.join(os.getcwd(), "tmp")
     if os.path.exists(localPath):
@@ -96,7 +95,6 @@ def GetIconPath(jsonPath):
 
 def FindJsonPath(text):
     '''使用正则匹配 */*.json'''
-
     pattern = r'/assets/[^/]+/[^/]+\.json'
     matches = re.findall(pattern, text, flags=re.UNICODE)
     return matches
