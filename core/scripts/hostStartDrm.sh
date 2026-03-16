@@ -1,3 +1,8 @@
+####################################################
+# MUST USE LF (NOT CRLF) LINE ENDINGS IN THIS FILE #
+####################################################
+
+
 memcheck
 wait_any_key(){
     LAST_TIME=$(date +%s)
@@ -61,11 +66,11 @@ remount_sd
 if [ ! -f "./epass_drm_app" ]; then
     cat << EOF
   _   _  ____  _____       _______
- | \\ | |/ __ \\|  __ \\   /\\|__   __|/\\
- |  \\| | |  | | |  | | /  \\  | |  /  \\
- | . \\ | |  | | |  | |/ /\\ \\ | | / /\\ \\
- | |\\  | |__| | |__| / ____ \\| |/ ____ \\
- |_| \\_|\\____/|_____/_/    \\_\\_/_/    \\_\\
+ | \ | |/ __ \|  __ \   /\|__   __|/\
+ |  \| | |  | | |  | | /  \  | |  /  \
+ | . \ | |  | | |  | |/ /\ \ | | / /\ \
+ | |\  | |__| | |__| / ____ \| |/ ____ \
+ |_| \_|\____/|_____/_/    \_\_/_/    \_\
 
 Please copy 'epass_drm_app' and asset files.
 to app directory.
@@ -82,23 +87,23 @@ cat << EOF
    VERSION 1.0 (c) Ada.Closure.Church 1097
 ---------------------------------------------
 EOF
-echo -n -e "\\e[31m"
+echo -n -e "\e[31m"
 cat << EOF
    This pass certifies that the bearer is an
  authorized operator of Rhodes Island Co'Ltd.
   Unauthorized use of Rhodes Island property
             is strictly prohibited.
 EOF
-echo -n -e "\\e[0m"
+echo -n -e "\e[0m"
 cat << EOF
 ---------------------------------------------
 EOF
 sleep 1
-echo -n -e "\\e[32m"
+echo -n -e "\e[32m"
 echo "Welcome to Rhodes Island!"
 echo "You are in Terminal $(tty)."
 echo "Access Level: Operator"
-echo -n -e "\\e[0m"
+echo -n -e "\e[0m"
 echo ""
 chmod +x ./epass_drm_app
 ./epass_drm_app version
