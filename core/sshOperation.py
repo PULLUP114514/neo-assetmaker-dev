@@ -22,10 +22,11 @@ def StartDrmApp(ssh):
     stdin, stdout, stderr = ssh.exec_command("chmod +x /root/hostStartDrm.sh")
     stdout.channel.recv_exit_status()
     stdin, stdout, stderr = ssh.exec_command("cd /root/ && nohup ./hostStartDrm.sh > output.log 2>&1 &")
+    logger.info(stdout.read().decode())
     stdout.channel.recv_exit_status()
     return
 
-def RefreshRemoteMaterialList(ssh):
+def RefreshRemoteMaterialListCache(ssh):
     '''刷新通行证上的素材列表'''
 
     from core.sshAutoUpload import FindUUIDInJson
@@ -135,7 +136,11 @@ def UploadFile(ssh, localPath, remotePath):
     scp.put(localPath, remotePath)
     scp.close() 
 
-
+def UploadDir(ssh, localPath, remotePath):
+    '''上传文件夹'''
+    scp = SCPClient(ssh.get_transport())
+    scp.put(localPath, remotePath, recursive=True)
+    scp.close()
 
 if __name__ == "__main__" and debug == True:
     ssh = paramiko.SSHClient()
@@ -149,4 +154,8 @@ if __name__ == "__main__" and debug == True:
         banner_timeout=10,
         auth_timeout=10,
     )
-    RefreshRemoteMaterialList(ssh)
+    RefreshRemoteMaterialListCache(ssh)
+    UploadDir(ssh, r"C:\Users\BSODWTPC\Desktop\干员素材\初音未来", "/assets/")
+    RefreshRemoteMaterialListCache(ssh)
+    StopDrmApp(ssh)
+    StartDrmApp(ssh)

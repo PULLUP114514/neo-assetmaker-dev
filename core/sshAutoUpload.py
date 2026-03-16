@@ -201,7 +201,6 @@ def _upload_dir_with_progress(
     if uploaded == total_files:
         report(100, "上传完成")
 
-
 def FindUUIDInJson(path):
     """
     在指定的path下查找*.json文件（只会查找一次），找到后返回uuid字段，仅包含字母、数字和连字符，失败返回空文本
