@@ -177,14 +177,12 @@ class SshRemoteListWorker(QThread):
             self.log_message.emit("INFO", f"找到 {len(childrenFolders)} 个素材包")
             items = []
             for folder in childrenFolders:
-
                 # 读取远程文件路径
                 with open(os.path.join(localPath, folder, "remoteFolderPath.cfg"), "r", encoding="utf-8") as f:
                     remoteAbsPath = f.read()
                 jsonPath = os.path.join(localPath, folder, "epconfig.json")
                 items.append({"name": GetJsonFatherKey(jsonPath, "name"), "size": 0, "date": 0, "uuid": GetJsonFatherKey(jsonPath, "uuid"), "path": remoteAbsPath})
             self.list_completed.emit(items)
-
         except Exception as e:
             self.log_message.emit("ERROR", f"获取远程素材列表失败: {e}")
             self.list_failed.emit(str(e))
@@ -253,8 +251,8 @@ class SshDownloadWorker(QThread):
         self._args = None
 
     def setup(self, host: str, port: int, user: str, password: str,
-              remote_path: str, target_name: str, local_save_dir: str):
-        self._args = (host, port, user, password, remote_path, target_name, local_save_dir)
+              remote_path: str, target_name: str, local_save_dir: str, remoteAbsPath: str):
+        self._args = (host, port, user, password, remote_path, target_name, local_save_dir, remoteAbsPath)
         self._cancel_event.clear()
 
     def cancel(self):
@@ -264,7 +262,7 @@ class SshDownloadWorker(QThread):
         if not self._args:
             self.download_failed.emit("参数不足")
             return
-        host, port, user, password, remote_path, target_name, local_save_dir = self._args
+        host, port, user, password, remote_path, target_name, local_save_dir, remoteAbsPath = self._args
         ssh = None
         scp_client = None
         try:
@@ -274,12 +272,11 @@ class SshDownloadWorker(QThread):
             ssh = _create_ssh_client(host, port, user, password)
             scp_client = SCPClient(ssh.get_transport())
 
-            full_remote = f"{remote_path.rstrip('/')}/{target_name}"
-            local_dest = os.path.join(local_save_dir, target_name)
-            os.makedirs(local_dest, exist_ok=True)
+            full_remote = remoteAbsPath
+            os.makedirs(local_save_dir, exist_ok=True)
 
             self.progress_updated.emit(10, "正在下载文件...")
-            scp_client.get(full_remote, local_path=local_dest, recursive=True)
+            scp_client.get(full_remote, local_path=local_save_dir, recursive=True)
 
             if self._cancel_event.is_set():
                 self.log_message.emit("INFO", "下载已取消")
@@ -287,8 +284,8 @@ class SshDownloadWorker(QThread):
                 return
 
             self.progress_updated.emit(100, "下载完成")
-            self.log_message.emit("INFO", f"已下载到: {local_dest}")
-            self.download_completed.emit(local_dest)
+            self.log_message.emit("INFO", f"已下载到: {local_save_dir}")
+            self.download_completed.emit(local_save_dir)
 
         except Exception as e:
             logger.exception("SSH 下载失败")
@@ -305,39 +302,3 @@ class SshDownloadWorker(QThread):
                     ssh.close()
                 except Exception:
                     pass
-
-
-class SshPreviewWorker(QThread):
-    """SSH 下载预览图片工作线程"""
-
-    preview_ready = pyqtSignal(bytes)  # 图片数据
-    preview_failed = pyqtSignal(str)
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._args = None
-
-    def run(self):
-        try:
-            GetJsonFatherKey()
-            # ssh = _create_ssh_client(host, port, user, password)
-            # sftp = ssh.open_sftp()
-            # asset_dir = f"{remote_path.rstrip('/')}/{target_name}"
-            # 尝试查找图片文件
-            # image_exts = ('.png', '.jpg', '.jpeg', '.bmp', '.webp')
-            # files = sftp.listdir(asset_dir)
-            # image_file = None
-            # for f in files:
-            #     if f.lower().endswith(image_exts):
-            #         image_file = f
-            #         break
-
-            # if image_file:
-            #     import io
-            #     with sftp.open(f"{asset_dir}/{image_file}", "rb") as remote_f:
-            #         data = remote_f.read()
-            #     self.preview_ready.emit(data)
-            # else:
-            #     self.preview_failed.emit("无图片文件")
-        except Exception as e:
-            self.preview_failed.emit(str(e))

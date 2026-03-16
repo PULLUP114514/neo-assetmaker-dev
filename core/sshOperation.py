@@ -84,8 +84,12 @@ def RefreshRemoteMaterialListCache(ssh):
         finally:
             if os.path.exists(os.path.join(localPath, "tmp")):
                 shutil.rmtree(os.path.join(localPath, "tmp"))
-    
-    scp.close()
+    try:
+        shutil.rmtree(os.path.join(localPath, "tmp"))
+    except Exception as e:
+        a = 1
+    finally:
+        scp.close()
 
 def GetIconPath(jsonPath):
     try:

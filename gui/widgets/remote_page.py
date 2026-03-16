@@ -42,6 +42,7 @@ class AssetListItemWidget(QWidget):
         self.thumbnail_label.setFixedSize(64, 64)
         self.thumbnail_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.thumbnail_label.setStyleSheet("border: 1px solid #ccc; border-radius: 4px;")
+        self.thumbnail_label.setWordWrap(True)
 
         self.name_label = CaptionLabel(asset_data.get('name', ''))
         self.name_label.setMaximumHeight(16)
@@ -127,10 +128,10 @@ class AssetListItemWidget(QWidget):
         self.parent_page._on_delete_for_asset(self.asset_data)
 
     def _on_download(self):
-        self.parent_page._on_download_for_asset(self.asset_data['name'])
+        self.parent_page._on_download_for_asset(self.asset_data)
 
     def _on_edit(self):
-        self.parent_page._on_edit_for_asset(self.asset_data['name'])
+        self.parent_page._on_edit_for_asset(self.asset_data)
 
     def set_buttons_enabled(self, enabled: bool):
         """设置按钮启用状态"""
@@ -523,9 +524,21 @@ class RemotePage(QWidget):
         self._log("INFO", message)
         InfoBar.success("上传成功", message, parent=self,
                         position=InfoBarPosition.TOP, duration=5000)
-        # 自动刷新列表
+        reply = QMessageBox.question(
+            self, "上传成功",
+            f"已上传\n是否重启DrmApp以应用更改？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        # 刷新列表
         if self._is_connected:
             self._on_refresh_list()
+
+        # 重启
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        import threading
+        t = threading.Thread(target=self.restart_drm_worker, daemon=True)
+        t.start()
 
     def _on_upload_failed(self, error: str):
         self.progressBar.setVisible(False)
@@ -553,7 +566,7 @@ class RemotePage(QWidget):
             return
         import threading
         t = threading.Thread(target=self.restart_drm_worker, daemon=True)
-        t.start()        
+        t.start()
     def _on_restart_drm(self):
         import threading
         t = threading.Thread(target=self.restart_drm_worker, daemon=True)
@@ -660,10 +673,12 @@ class RemotePage(QWidget):
         InfoBar.error("下载失败", error, parent=self,
                       position=InfoBarPosition.TOP, duration=5000)
 
-    def _on_download_for_asset(self, name: str):
+    def _on_download_for_asset(self, asset_data: dict):
         if self._is_busy:
             return
 
+        name = asset_data.get('name', 'Unknown')
+        remotePath = asset_data.get('path', 'Unknown')
         save_dir = QFileDialog.getExistingDirectory(
             self, "选择保存位置")
         if not save_dir:
@@ -677,7 +692,7 @@ class RemotePage(QWidget):
         from core.ssh_upload_service import SshDownloadWorker
         self._download_worker = SshDownloadWorker(parent=self)
         self._download_worker.setup(host, port, user, password,
-                                    remote_path, name, save_dir)
+                                    remote_path, name, save_dir, remotePath)
         self._download_worker.log_message.connect(self._worker_log)
         self._download_worker.progress_updated.connect(self._on_download_progress)
         self._download_worker.download_completed.connect(self._on_download_done)
@@ -736,10 +751,12 @@ class RemotePage(QWidget):
                          parent=self, position=InfoBarPosition.TOP,
                          duration=5000)
 
-    def _on_edit_for_asset(self, name: str):
+    def _on_edit_for_asset(self, asset_data: dict):
         if self._is_busy:
             return
 
+        name = asset_data.get('name', 'Unknown')
+        remoteAbsPath = asset_data.get('path', '')
         # 下载到临时目录，完成后通知主窗口打开
         temp_dir = tempfile.mkdtemp(prefix="neo_asset_edit_")
         host, port, user, password, remote_path = self._get_ssh_params()
@@ -750,7 +767,7 @@ class RemotePage(QWidget):
         from core.ssh_upload_service import SshDownloadWorker
         self._download_worker = SshDownloadWorker(parent=self)
         self._download_worker.setup(host, port, user, password,
-                                    remote_path, name, temp_dir)
+                                    remote_path, name, temp_dir, remoteAbsPath)
         self._download_worker.log_message.connect(self._worker_log)
         self._download_worker.progress_updated.connect(self._on_download_progress)
         self._download_worker.download_completed.connect(self._on_edit_download_done)
