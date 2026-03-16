@@ -29,12 +29,121 @@ from gui.styles import COLOR_PREVIEW_BG
 logger = logging.getLogger(__name__)
 
 
+class AssetListItemWidget(QWidget):
+    """自定义列表项Widget：左侧缩略图、名称、UUID、路径；右侧三个按钮"""
+
+    def __init__(self, asset_data: dict, parent=None):
+        super().__init__(parent)
+        self.asset_data = asset_data
+        self.parent_page = parent  # RemotePage实例
+
+        # 左侧组件
+        self.thumbnail_label = QLabel()
+        self.thumbnail_label.setFixedSize(64, 64)
+        self.thumbnail_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.thumbnail_label.setStyleSheet("border: 1px solid #ccc; border-radius: 4px;")
+
+        self.name_label = CaptionLabel(asset_data.get('name', ''))
+        self.name_label.setMaximumHeight(16)
+        self.uuid_label = CaptionLabel(f"UUID: {asset_data.get('uuid', '')}")
+        self.uuid_label.setMaximumHeight(16)
+        # self.path_label = CaptionLabel(f"路径: {asset_data.get('path', '')}")
+
+        # 右侧按钮
+        self.btn_delete = PushButton("删除")
+        self.btn_delete.setIcon(FluentIcon.DELETE)
+        self.btn_download = PushButton("下载")
+        self.btn_download.setIcon(FluentIcon.DOWNLOAD)
+        self.btn_edit = PushButton("编辑")
+        self.btn_edit.setIcon(FluentIcon.EDIT)
+
+        # 布局
+        left_layout = QVBoxLayout()
+        left_layout.setSpacing(4)
+
+
+        top_layout = QHBoxLayout()
+        top_layout.setSpacing(8)
+        top_layout.addWidget(self.thumbnail_label, alignment=Qt.AlignmentFlag.AlignTop)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(2)
+        text_layout.addWidget(self.name_label)
+        text_layout.addWidget(self.uuid_label)
+        # text_layout.addWidget(self.path_label)
+        top_layout.addLayout(text_layout)
+
+        left_layout.addLayout(top_layout)
+
+        right_layout = QVBoxLayout()
+        right_layout.setSpacing(4)
+        right_layout.addWidget(self.btn_delete)
+        right_layout.addWidget(self.btn_download)
+        right_layout.addWidget(self.btn_edit)
+
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(8, 8, 8, 8)
+        main_layout.setSpacing(12)
+        main_layout.addLayout(left_layout)
+        main_layout.addStretch()
+        main_layout.addLayout(right_layout)
+
+        # 连接信号
+        self.btn_delete.clicked.connect(self._on_delete)
+        self.btn_download.clicked.connect(self._on_download)
+        self.btn_edit.clicked.connect(self._on_edit)
+
+        # 加载缩略图
+        self._load_thumbnail()
+
+    def _load_thumbnail(self):
+        """加载缩略图"""
+        try:
+            uuid = self.asset_data.get('uuid', '')
+            if not uuid:
+                return
+            local_path = os.path.join(os.getcwd(), "tmp", uuid)
+            if not os.path.exists(local_path):
+                return
+            from core.ssh_upload_service import GetJsonFatherKey
+            icon_path = GetJsonFatherKey(os.path.join(local_path, "epconfig.json"), "icon")
+            full_icon_path = os.path.join(local_path, icon_path)
+            if os.path.exists(full_icon_path):
+                pixmap = QPixmap(full_icon_path)
+                scaled_pixmap = pixmap.scaled(
+                    64, 64,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                self.thumbnail_label.setPixmap(scaled_pixmap)
+            else:
+                self.thumbnail_label.setText("无图")
+        except Exception as e:
+            self.thumbnail_label.setText("加载失败")
+            logger.error(f"加载缩略图失败: {e}")
+
+    def _on_delete(self):
+        self.parent_page._on_delete_for_asset(self.asset_data['name'])
+
+    def _on_download(self):
+        self.parent_page._on_download_for_asset(self.asset_data['name'])
+
+    def _on_edit(self):
+        self.parent_page._on_edit_for_asset(self.asset_data['name'])
+
+    def set_buttons_enabled(self, enabled: bool):
+        """设置按钮启用状态"""
+        self.btn_delete.setEnabled(enabled)
+        self.btn_download.setEnabled(enabled)
+        self.btn_edit.setEnabled(enabled)
+
+
 class RemotePage(QWidget):
     """
-    远程管理页面 — 三栏布局（应该是能用的吧，啊哈哈......）
+    远程管理页面 — 三栏布局
 
     左栏: 操作按钮（连接、刷新、上传）+ 素材列表
-    中栏: 预览显示 + 操作按钮（删除、下载、编辑）
+    中栏: 素材详细列表（缩略图、名称、UUID、路径 + 操作按钮）
     右栏: 操作日志
     """
 
@@ -50,7 +159,6 @@ class RemotePage(QWidget):
         self._list_worker = None
         self._delete_worker = None
         self._download_worker = None
-        self._preview_worker = None
         self._connect_worker = None
         self._local_file_path = ""
 
@@ -90,7 +198,7 @@ class RemotePage(QWidget):
         self.mainLayout.addWidget(self.splitter)
 
     def _build_left_panel(self):
-        """左栏: 操作按钮 + 素材列表"""
+        """左栏: 操作按钮 + 状态显示"""
         self.leftPanel = SimpleCardWidget()
         self.leftPanel.setMinimumWidth(230)
         self.leftPanel.setMaximumWidth(280)
@@ -137,83 +245,26 @@ class RemotePage(QWidget):
         self.progressLabel = CaptionLabel("")
         layout.addWidget(self.progressLabel)
 
-        # 分隔线 2 — 分隔状态区和列表区
-        line2 = QFrame()
-        line2.setFrameShape(QFrame.Shape.HLine)
-        line2.setFrameShadow(QFrame.Shadow.Sunken)
-        layout.addWidget(line2)
-
-        # 远程素材列表
-        self.assetListLabel = CaptionLabel("远程素材")
-        layout.addWidget(self.assetListLabel)
-
-        self.remoteAssetList = ListWidget()
-        self.remoteAssetList.setTextElideMode(
-            Qt.TextElideMode.ElideMiddle)
-        # 去除 ListWidget 默认边框，融入 SimpleCardWidget
-        setCustomStyleSheet(
-            self.remoteAssetList,
-            "ListWidget { border: none; background: transparent; }",
-            "ListWidget { border: none; background: transparent; }",
-        )
-        layout.addWidget(self.remoteAssetList, stretch=1)
-
     def _build_middle_panel(self):
-        """中栏: 预览显示 + 操作按钮"""
-        self.middlePanel = QWidget()
+        """中栏: 素材详细列表"""
+        self.middlePanel = SimpleCardWidget()
         layout = QVBoxLayout(self.middlePanel)
-        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
 
-        # 预览容器（SimpleCardWidget，无 hover 动画）
-        self.previewContainer = SimpleCardWidget()
-        previewLayout = QVBoxLayout(self.previewContainer)
-        previewLayout.setContentsMargins(10, 10, 10, 10)
-        previewLayout.setSpacing(8)
+        # 标题
+        self.middleTitleLabel = CaptionLabel("远程素材详情")
+        layout.addWidget(self.middleTitleLabel)
 
-        # 选中素材名称标签
-        self.previewNameLabel = CaptionLabel("")
-        self.previewNameLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        previewLayout.addWidget(self.previewNameLabel)
-
-        # 预览图片显示
-        self.previewLabel = QLabel()
-        self.previewLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.previewLabel.setMinimumHeight(250)
-        self.previewLabel.setText("选择素材以预览")
+        # 详细列表
+        self.assetDetailList = ListWidget()
+        self.assetDetailList.setTextElideMode(Qt.TextElideMode.ElideMiddle)
         setCustomStyleSheet(
-            self.previewLabel,
-            f"QLabel {{ color: #888888; font-size: 13px;"
-            f" background-color: {COLOR_PREVIEW_BG[0]};"
-            f" border-radius: 8px; }}",
-            f"QLabel {{ color: #666666; font-size: 13px;"
-            f" background-color: {COLOR_PREVIEW_BG[1]};"
-            f" border-radius: 8px; }}",
+            self.assetDetailList,
+            "ListWidget { border: none; background: transparent; }",
+            "ListWidget { border: none; background: transparent; }",
         )
-        previewLayout.addWidget(self.previewLabel, stretch=1)
-
-        # 操作按钮行（在预览容器内部）
-        actionLayout = QHBoxLayout()
-        actionLayout.setSpacing(8)
-
-        self.btnDelete = PushButton("删除")
-        self.btnDelete.setIcon(FluentIcon.DELETE)
-        self.btnDelete.setEnabled(False)
-
-        self.btnDownload = PushButton("下载")
-        self.btnDownload.setIcon(FluentIcon.DOWNLOAD)
-        self.btnDownload.setEnabled(False)
-
-        self.btnEdit = PushButton("编辑")
-        self.btnEdit.setIcon(FluentIcon.EDIT)
-        self.btnEdit.setEnabled(False)
-
-        actionLayout.addWidget(self.btnDelete)
-        actionLayout.addWidget(self.btnDownload)
-        actionLayout.addWidget(self.btnEdit)
-        previewLayout.addLayout(actionLayout)
-
-        layout.addWidget(self.previewContainer, stretch=1)
+        layout.addWidget(self.assetDetailList, stretch=1)
 
     def _build_right_panel(self):
         """右栏: 操作日志"""
@@ -245,11 +296,7 @@ class RemotePage(QWidget):
         self.btnConnect.clicked.connect(self._on_connect)
         self.btnRefreshList.clicked.connect(self._on_refresh_list)
         self.btnUploadLocal.clicked.connect(self._on_upload_local)
-        self.btnDelete.clicked.connect(self._on_delete)
-        self.btnDownload.clicked.connect(self._on_download)
-        self.btnEdit.clicked.connect(self._on_edit)
         self.btnClearLog.clicked.connect(self.logTextEdit.clear)
-        self.remoteAssetList.currentItemChanged.connect(self._on_asset_selected)
 
     # ─── 日志 ────────────────────────────────────────────
 
@@ -287,10 +334,12 @@ class RemotePage(QWidget):
         self.btnConnect.setEnabled(not busy)
         self.btnRefreshList.setEnabled(not busy and self._is_connected)
         self.btnUploadLocal.setEnabled(not busy and self._is_connected)
-        has_selection = self.remoteAssetList.currentItem() is not None
-        self.btnDelete.setEnabled(not busy and has_selection)
-        self.btnDownload.setEnabled(not busy and has_selection)
-        self.btnEdit.setEnabled(not busy and has_selection)
+        # 设置中栏列表项按钮的启用状态
+        for i in range(self.assetDetailList.count()):
+            item = self.assetDetailList.item(i)
+            widget = self.assetDetailList.itemWidget(item)
+            if widget:
+                widget.set_buttons_enabled(not busy)
 
     # ─── SSH 配置读取 ─────────────────────────────────────
 
@@ -363,11 +412,8 @@ class RemotePage(QWidget):
             self.btnConnect.setText("连接")
             self.btnRefreshList.setEnabled(False)
             self.btnUploadLocal.setEnabled(False)
-            # 断开时清空列表和预览
-            self.remoteAssetList.clear()
-            self.previewNameLabel.setText("")
-            self.previewLabel.setPixmap(QPixmap())
-            self.previewLabel.setText("选择素材以预览")
+            # 断开时清空列表
+            self.assetDetailList.clear()
 
     # ─── 刷新列表 ────────────────────────────────────────
 
@@ -387,17 +433,18 @@ class RemotePage(QWidget):
         self._list_worker.start()
 
     def _on_list_loaded(self, items: list):
-        self.remoteAssetList.clear()
+        self.assetDetailList.clear()
         if not items:
             placeholder = QListWidgetItem("暂无远程素材")
             placeholder.setFlags(Qt.ItemFlag.NoItemFlags)
-            self.remoteAssetList.addItem(placeholder)
+            self.assetDetailList.addItem(placeholder)
         else:
             for item in items:
-                li = QListWidgetItem(item["name"])
-                li.setData(Qt.ItemDataRole.UserRole, item)
-                li.setToolTip(f"大小: {item['size']} | 修改日期: {item['date']}")
-                self.remoteAssetList.addItem(li)
+                # 中栏
+                widget = AssetListItemWidget(item, self)
+                list_item = QListWidgetItem(self.assetDetailList)
+                list_item.setSizeHint(widget.sizeHint())
+                self.assetDetailList.setItemWidget(list_item, widget)
 
         self._set_busy(False)
         if items:
@@ -415,15 +462,8 @@ class RemotePage(QWidget):
     # ─── 素材选中 ────────────────────────────────────────
 
     def _on_asset_selected(self, current, previous):
-        has_selection = current is not None and (current.flags() )
-        if has_selection:
-            uuid = current.data(Qt.ItemDataRole.UserRole)["uuid"]
-            self.previewNameLabel.setText(f"正在预览: {uuid}")
-            self._load_preview(uuid)
-        else:
-            self.previewNameLabel.setText("")
-            self.previewLabel.setPixmap(QPixmap())
-            self.previewLabel.setText("选择素材以预览")
+        # 左栏选中事件，目前无操作
+        pass
 
     def _get_selected_asset_name(self) -> str:
         item = self.remoteAssetList.currentItem()
@@ -432,46 +472,6 @@ class RemotePage(QWidget):
         return ""
 
     # ─── 预览 ────────────────────────────────────────────
-
-    def _load_preview(self, asset_uuid: str):
-        pixmap  = QPixmap()
-        try:
-            localPath = os.path.join(os.getcwd(), "tmp", asset_uuid)
-            if not os.path.exists(localPath):
-                return
-            # 直接从本地临时目录加载预览图
-            from core.ssh_upload_service import GetJsonFatherKey
-            iconPath = GetJsonFatherKey(os.path.join(localPath, f"epconfig.json"), "icon")
-            pixmap.load(os.path.join(localPath, iconPath))
-            scaled = pixmap.scaled(
-                self.previewLabel.size(),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-
-        except Exception as e:
-            self._log("ERROR", f"加载预览失败: {e}")
-            return
-        self.previewLabel.setPixmap(scaled)
-        self.previewLabel.setText("")
-
-    def _on_preview_ready(self, data: bytes):
-        pixmap = QPixmap()
-        pixmap.loadFromData(data)
-        if not pixmap.isNull():
-            scaled = pixmap.scaled(
-                self.previewLabel.size(),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            self.previewLabel.setPixmap(scaled)
-            self.previewLabel.setText("")
-        else:
-            self.previewLabel.setText("无法解析图片")
-
-    def _on_preview_failed(self, error: str):
-        self.previewLabel.setPixmap(QPixmap())
-        self.previewLabel.setText(f"无预览 ({error})")
 
     # ─── 上传 ────────────────────────────────────────────
 
@@ -567,6 +567,29 @@ class RemotePage(QWidget):
         InfoBar.error("删除失败", error, parent=self,
                       position=InfoBarPosition.TOP, duration=5000)
 
+    def _on_delete_for_asset(self, name: str):
+        if self._is_busy:
+            return
+
+        reply = QMessageBox.question(
+            self, "确认删除",
+            f"确定要删除远程素材 \"{name}\" 吗？\n此操作不可撤销。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        host, port, user, password, remote_path = self._get_ssh_params()
+        self._set_busy(True)
+
+        from core.ssh_upload_service import SshDeleteWorker
+        self._delete_worker = SshDeleteWorker(parent=self)
+        self._delete_worker.setup(host, port, user, password, remote_path, name)
+        self._delete_worker.log_message.connect(self._worker_log)
+        self._delete_worker.delete_completed.connect(self._on_delete_done)
+        self._delete_worker.delete_failed.connect(self._on_delete_failed)
+        self._delete_worker.start()
+
     # ─── 下载 ────────────────────────────────────────────
 
     def _on_download(self):
@@ -616,6 +639,30 @@ class RemotePage(QWidget):
         self._log("ERROR", f"下载失败: {error}")
         InfoBar.error("下载失败", error, parent=self,
                       position=InfoBarPosition.TOP, duration=5000)
+
+    def _on_download_for_asset(self, name: str):
+        if self._is_busy:
+            return
+
+        save_dir = QFileDialog.getExistingDirectory(
+            self, "选择保存位置")
+        if not save_dir:
+            return
+
+        host, port, user, password, remote_path = self._get_ssh_params()
+        self._set_busy(True)
+        self.progressBar.setVisible(True)
+        self.progressBar.setValue(0)
+
+        from core.ssh_upload_service import SshDownloadWorker
+        self._download_worker = SshDownloadWorker(parent=self)
+        self._download_worker.setup(host, port, user, password,
+                                    remote_path, name, save_dir)
+        self._download_worker.log_message.connect(self._worker_log)
+        self._download_worker.progress_updated.connect(self._on_download_progress)
+        self._download_worker.download_completed.connect(self._on_download_done)
+        self._download_worker.download_failed.connect(self._on_download_failed)
+        self._download_worker.start()
 
     # ─── 编辑（下载后用主窗口打开）─────────────────────────
 
@@ -669,6 +716,27 @@ class RemotePage(QWidget):
                          parent=self, position=InfoBarPosition.TOP,
                          duration=5000)
 
+    def _on_edit_for_asset(self, name: str):
+        if self._is_busy:
+            return
+
+        # 下载到临时目录，完成后通知主窗口打开
+        temp_dir = tempfile.mkdtemp(prefix="neo_asset_edit_")
+        host, port, user, password, remote_path = self._get_ssh_params()
+        self._set_busy(True)
+        self.progressBar.setVisible(True)
+        self.progressBar.setValue(0)
+
+        from core.ssh_upload_service import SshDownloadWorker
+        self._download_worker = SshDownloadWorker(parent=self)
+        self._download_worker.setup(host, port, user, password,
+                                    remote_path, name, temp_dir)
+        self._download_worker.log_message.connect(self._worker_log)
+        self._download_worker.progress_updated.connect(self._on_download_progress)
+        self._download_worker.download_completed.connect(self._on_edit_download_done)
+        self._download_worker.download_failed.connect(self._on_download_failed)
+        self._download_worker.start()
+
     # ─── 公共接口 ────────────────────────────────────────
 
     def load_settings(self, settings: dict):
@@ -680,7 +748,7 @@ class RemotePage(QWidget):
         workers = [
             self._upload_worker, self._list_worker,
             self._delete_worker, self._download_worker,
-            self._preview_worker, self._connect_worker,
+            self._connect_worker,
         ]
         for w in workers:
             if w and w.isRunning():
