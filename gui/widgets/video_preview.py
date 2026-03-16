@@ -890,9 +890,13 @@ class VideoPreviewWidget(QWidget):
         return (rx0, ry0, rx1 - rx0, ry1 - ry0)
 
     def get_cropbox_for_export(self) -> Tuple[int, int, int, int]:
-        """获取导出用的 cropbox（原始坐标系）"""
+        """获取导出用的 cropbox（原始坐标系，供模拟器使用）"""
         x, y, w, h = self.cropbox
         return self._cropbox_to_original_coords(x, y, w, h)
+
+    def get_cropbox_in_rotated_space(self) -> Tuple[int, int, int, int]:
+        """获取旋转空间中的 cropbox（用于视频导出，无坐标转换）"""
+        return tuple(self.cropbox)
 
     def set_cropbox(self, x: int, y: int, w: int, h: int):
         """设置裁剪框"""
@@ -1138,7 +1142,10 @@ class VideoPreviewWidget(QWidget):
             self._bound_cropbox()
             self._emit_cropbox_changed()
 
-            if self._reader_thread is not None:
+            # GL 编辑模式下 cropbox 由 GPU 绘制，无需同步到后台线程
+            if self._reader_thread is not None and (
+                    not self._use_gl or self._preview_mode
+                    or (self._gl_renderer and self._gl_renderer.gl_failed)):
                 self._reader_thread.request_set_cropbox(self.cropbox)
             if self.current_frame is not None:
                 self._refresh_display()
