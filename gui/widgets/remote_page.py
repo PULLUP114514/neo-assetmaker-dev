@@ -208,6 +208,7 @@ class RemotePage(QWidget):
         layout = QVBoxLayout(self.leftPanel)
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(10)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # 按钮
         self.btnConnect = PrimaryPushButton("连接")
@@ -250,6 +251,7 @@ class RemotePage(QWidget):
         layout.addWidget(self.progressBar)
 
         self.progressLabel = CaptionLabel("")
+        self.progressLabel.setWordWrap(True)
         layout.addWidget(self.progressLabel)
 
     def _build_middle_panel(self):
