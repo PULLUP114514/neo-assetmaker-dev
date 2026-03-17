@@ -122,6 +122,7 @@ class RemoteFileManagerWindow(QWidget):
             "ListWidget { border: none; background: transparent; }",
             "ListWidget { border: none; background: transparent; }",
         )
+        self.fileManagerList.itemDoubleClicked.connect(self.on_item_double_clicked)
         self.containerLayout.addWidget(self.fileManagerList)
 
         # 底部工具栏
@@ -133,7 +134,7 @@ class RemoteFileManagerWindow(QWidget):
         # 挤占左边空间
         self.buttomLayout.addStretch()
 
-        buttonWidth = 130
+        buttonWidth = 100
 
         self.btn_refresh = PushButton("刷新")
         self.btn_refresh.setIcon(FluentIcon.UPDATE)
@@ -146,10 +147,16 @@ class RemoteFileManagerWindow(QWidget):
         self.btn_goParentFolder.setIcon(FluentIcon.UP)
         self.btn_goParentFolder.setMinimumWidth(buttonWidth)
         self.btn_goParentFolder.setContentsMargins(10, 10, 10, 10)
-        self.btn_goParentFolder.clicked.connect(self._on_refresh)
+        self.btn_goParentFolder.clicked.connect(self._on_goParentFolder)
         self.buttomLayout.addWidget(
             self.btn_goParentFolder, 0, Qt.AlignmentFlag.AlignRight
         )
+
+        self.btn_Rename = PushButton("重命名")
+        self.btn_Rename.setIcon(FluentIcon.DELETE)
+        self.btn_Rename.setMinimumWidth(buttonWidth)
+        self.buttomLayout.addWidget(self.btn_Rename, 0, Qt.AlignmentFlag.AlignRight)
+        self.btn_Rename.clicked.connect(self._on_file_rename_clicked)
 
         self.btn_Delete = PushButton("删除")
         self.btn_Delete.setIcon(FluentIcon.DELETE)
@@ -179,7 +186,30 @@ class RemoteFileManagerWindow(QWidget):
 
         self._on_refresh()
 
+    def _on_goParentFolder(self):
+        self.DirChanged("..")
+        self._on_refresh()
+        return
+
+    def DetectProtectedPath(self, path: str):
+        """检测当前文件夹/文件夹是否允许被删除"""
+        protectedDirList = [
+            ".",
+            "..",
+        ]
+        for prt in protectedDirList:
+            if path == prt:
+                return False
+        return True
+
+    def _on_file_rename_clicked(self):
+        item = self.fileManagerList.currentItem()
+        if not item:
+            return
+        filename = item.data(Qt.ItemDataRole.UserRole)
+
     def LoadFiles(self, fileList: list):
+        self.fileList = fileList
         for file in fileList:
             filename = file.name
 
@@ -193,6 +223,7 @@ class RemoteFileManagerWindow(QWidget):
 
             list_item = QListWidgetItem(self.fileManagerList)
             list_item.setSizeHint(item_widget.sizeHint())
+
             list_item.setData(Qt.ItemDataRole.UserRole, filename)  # 存文件名
             self.fileManagerList.addItem(list_item)
             self.fileManagerList.setItemWidget(list_item, item_widget)
@@ -306,6 +337,7 @@ class RemoteFileManagerWindow(QWidget):
 
     def _on_refresh(self):
         try:
+            self.fileManagerList.clear()
             currentFolder = self.lb_currentPath.text()
             if not self.TryStartSSH():
                 raise ValueError("初始化SSH失败")
@@ -333,12 +365,12 @@ class RemoteFileManagerWindow(QWidget):
     def getFolder(self, ssh: paramiko.SSHClient, currentFolder, fileList=[]) -> list:
         """此函数会将传入的list中为folder的项目进行标记"""
         stdin, stdout, stderr = ssh.exec_command(
-            f"""cd {currentFolder} && find . -type f -maxdepth 1"""
+            f"""cd {currentFolder} && find . -type d -maxdepth 1"""
         )
         lines = stdout.read().decode().splitlines()
         for i in range(0, len(lines)):
             for j in range(0, len(fileList)):
-                if lines[i] == fileList[j].name and i < j:
+                if lines[i] == fileList[j].name:
                     fileList[j].type = "folder"
         return fileList
 
@@ -350,3 +382,37 @@ class RemoteFileManagerWindow(QWidget):
             self.lb_process.setText("完成")
             self.progressBar.setValue(0)
         return
+
+    def on_item_double_clicked(self, item: QListWidgetItem):
+        fileName = item.data(Qt.ItemDataRole.UserRole)  # 之前存的文件名
+        for item in self.fileList:
+            if fileName == item.name:
+                if item.type == "folder":
+                    self.DirChanged(fileName)
+                    self._on_refresh()
+                    return
+                else:
+                    return
+        return
+
+    def DirChanged(self, nextDir: str):
+        currentPath = self.lb_currentPath.text()
+
+        if nextDir == ".." and currentPath != "/":
+            # 返回上一级目录
+            import os
+
+            parentDir = os.path.dirname(currentPath.rstrip("/"))
+            self.lb_currentPath.setText(parentDir)
+            return parentDir
+        elif nextDir == ".":
+            # 刷新当前目录
+            return currentPath
+        else:
+            # 切换到指定子目录
+            import os
+
+            nextDir = nextDir[2:]  # 从索引 2 开始取，前两个字符" ./ "被删除
+            newPath = os.path.join(currentPath, nextDir)
+            self.lb_currentPath.setText(newPath)
+            return newPath
