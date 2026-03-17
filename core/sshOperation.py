@@ -13,7 +13,7 @@ import shutil
 
 logger = logging.getLogger(__name__)
 
-debug = True
+debug = False
 
 def StartDrmApp(ssh):
     '''使用脚本启动DRM'''

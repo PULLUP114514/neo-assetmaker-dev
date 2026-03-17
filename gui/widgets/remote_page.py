@@ -215,14 +215,14 @@ class RemotePage(QWidget):
         self.progressLabel = CaptionLabel(" ")
         self.progressLabel.setWordWrap(True)
 
-        wrapper = QVBoxLayout()
-        wrapper.setContentsMargins(10, 0, 10, 0)  # 左偏移
+        self.wrapper = QVBoxLayout()
+        self.wrapper.setContentsMargins(10, 0, 10, 0)  # 左偏移
 
-        wrapper.addWidget(self.connectionStatusLabel)
-        wrapper.addWidget(self.progressBar)
-        wrapper.addWidget(self.progressLabel)
+        self.wrapper.addWidget(self.connectionStatusLabel)
+        self.wrapper.addWidget(self.progressBar)
+        self.wrapper.addWidget(self.progressLabel)
 
-        self.mainLayout.addLayout(wrapper)
+        self.mainLayout.addLayout(self.wrapper)
         # self.mainLayout.addWidget(self.progressLabel)
 
     def _build_left_panel(self):
@@ -256,10 +256,10 @@ class RemotePage(QWidget):
         self.btnRestartDrm.setEnabled(False)
         layout.addWidget(self.btnRestartDrm)
 
-        self.btnUploadDisplayImg = PushButton("上传扩列图")
-        self.btnUploadDisplayImg.setIcon(FluentIcon.SEND)
-        self.btnUploadDisplayImg.setEnabled(False)
-        layout.addWidget(self.btnUploadDisplayImg)
+        self.btnRemoteFileBrowser = PushButton("远程文件管理器")
+        self.btnRemoteFileBrowser.setIcon(FluentIcon.FOLDER)
+        self.btnRemoteFileBrowser.setEnabled(False)
+        layout.addWidget(self.btnRemoteFileBrowser)
 
         # 分隔线
         line1 = QFrame()
@@ -321,6 +321,13 @@ class RemotePage(QWidget):
         self.btnRestartDrm.clicked.connect(self._on_restart_drm)
         self.btnUploadLocal.clicked.connect(self._on_upload_local)
         self.btnClearLog.clicked.connect(self.logTextEdit.clear)
+        self.btnRemoteFileBrowser.clicked.connect(self._on_upload_remote_file)
+
+    def _on_upload_remote_file(self):
+        from gui.widgets.RemoteFileManager import RemoteFileManagerDialog
+        dialog = RemoteFileManagerDialog()
+        dialog.exec()
+        return
 
     # ─── 日志 ────────────────────────────────────────────
 
@@ -358,6 +365,7 @@ class RemotePage(QWidget):
         self.btnConnect.setEnabled(not busy)
         self.btnRefreshList.setEnabled(not busy and self._is_connected)
         self.btnUploadLocal.setEnabled(not busy and self._is_connected)
+        self.btnRemoteFileBrowser.setEnabled(not busy and self._is_connected)
         self.btnRestartDrm.setEnabled(not busy and self._is_connected)
         # 设置中栏列表项按钮的启用状态
         for i in range(self.assetDetailList.count()):
@@ -427,6 +435,7 @@ class RemotePage(QWidget):
             self.btnConnect.setText("断开")
             self.btnRefreshList.setEnabled(True)
             self.btnUploadLocal.setEnabled(True)
+            self.btnRemoteFileBrowser.setEnabled(True)
             self.btnRestartDrm.setEnabled(True)
         else:
             self.connectionStatusLabel.setText("未连接")
@@ -438,6 +447,7 @@ class RemotePage(QWidget):
             self.btnConnect.setText("连接")
             self.btnRefreshList.setEnabled(False)
             self.btnUploadLocal.setEnabled(False)
+            self.btnRemoteFileBrowser.setEnabled(False)
             self.btnRestartDrm.setEnabled(False)
             # 断开时清空列表
             self.assetDetailList.clear()
