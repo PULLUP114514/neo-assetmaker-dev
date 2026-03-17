@@ -1,3 +1,6 @@
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QPalette, QColor
+from qtpy.QtGui import QColor, QPixmap
 import os
 from PyQt6.QtWidgets import (
     QDialog,
@@ -78,7 +81,7 @@ class RemoteFileManagerWindow(QWidget):
         self.sshDefaultFolder = sshDefaultFolder
 
         self.setWindowTitle("远程文件管理")
-        self.resize(1000, 400)
+        self.resize(1200, 1000)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)  # 阻塞主窗口
 
         # 主布局
@@ -209,14 +212,49 @@ class RemoteFileManagerWindow(QWidget):
         filename = item.data(Qt.ItemDataRole.UserRole)
 
     def LoadFiles(self, fileList: list):
-        self.fileList = fileList
-        for file in fileList:
+        # 检查颜色调色板
+        app = QApplication.instance() or QApplication([])
+        if app.palette().color(QPalette.ColorRole.Window).lightness() < 128:
+            themeType = "dark"
+        else:
+            themeType = "light"
+
+        # 使用字典重排序
+        self.fileList = sorted(fileList, key=lambda x: x.name)
+
+        for file in self.fileList:
             filename = file.name
 
             item_widget = QWidget()
 
             layout = QHBoxLayout(item_widget)
             layout.setContentsMargins(10, 10, 10, 10)
+
+            # 图标 QLabel
+            icon_label = QLabel()
+            if getattr(file, "type", "") == "folder":
+                icon_label.setPixmap(
+                    QPixmap(
+                        os.path.join(os.getcwd(), "assets", f"folder_{themeType}.png")
+                    ).scaled(
+                        24,
+                        24,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                )
+            else:
+                icon_label.setPixmap(
+                    QPixmap(
+                        os.path.join(os.getcwd(), "assets", f"file_{themeType}.png")
+                    ).scaled(
+                        24,
+                        24,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                )
+            layout.addWidget(icon_label)
 
             label = CaptionLabel(filename)
             layout.addWidget(label, 1, Qt.AlignmentFlag.AlignLeft)
@@ -265,7 +303,7 @@ class RemoteFileManagerWindow(QWidget):
 
             # sshOperation.DelRemoteFile(ssh)
         except Exception as e:
-            logger.error(f"刷新失败{e}")
+            logger.error(f"刷新失败{e}", stack_info=True)
         return
 
     def _on_file_download_clicked(self):
@@ -346,7 +384,7 @@ class RemoteFileManagerWindow(QWidget):
             fileList = self.getFolder(self.ssh, currentFolder, fileList)
             self.LoadFiles(fileList)
         except Exception as e:
-            logger.error(f"刷新失败{e}")
+            logger.error(f"刷新失败{e}", stack_info=True)
         return
 
     def CalcCurrentPath(self) -> str:
@@ -357,8 +395,10 @@ class RemoteFileManagerWindow(QWidget):
         stdin, stdout, stderr = ssh.exec_command(
             f"""cd {currentFolder} && find . -maxdepth 1"""
         )
-        lines = stdout.read().decode().splitlines()
+        lines = stdout.read().decode("utf-8", errors="ignore").splitlines()
         for line in lines:
+            if line == ".":
+                line = ".."
             list.append(FileItem(line, "file"))
         return list
 
@@ -367,9 +407,11 @@ class RemoteFileManagerWindow(QWidget):
         stdin, stdout, stderr = ssh.exec_command(
             f"""cd {currentFolder} && find . -type d -maxdepth 1"""
         )
-        lines = stdout.read().decode().splitlines()
+        lines = stdout.read().decode("utf-8", errors="ignore").splitlines()
         for i in range(0, len(lines)):
             for j in range(0, len(fileList)):
+                if lines[i] == ".":
+                    lines[i] = ".."
                 if lines[i] == fileList[j].name:
                     fileList[j].type = "folder"
         return fileList
