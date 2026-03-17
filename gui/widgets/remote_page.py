@@ -324,8 +324,11 @@ class RemotePage(QWidget):
         self.btnRemoteFileBrowser.clicked.connect(self._on_upload_remote_file)
 
     def _on_upload_remote_file(self):
+        host, port, user, password,remote_path = self._get_ssh_params()
         from gui.widgets.RemoteFileManager import RemoteFileManagerDialog
-        dialog = RemoteFileManagerDialog()
+        dialog = RemoteFileManagerDialog(
+            host, port, user, password,remote_path
+        )
         dialog.exec()
         return
 

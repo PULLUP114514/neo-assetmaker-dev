@@ -12,6 +12,10 @@ from qfluentwidgets import (
     FluentIcon, InfoBar, InfoBarPosition,
     setCustomStyleSheet,
 )
+from core import sshOperation
+import paramiko
+from scp import SCPClient
+
 
 enableDebug = True
 
@@ -22,15 +26,39 @@ class FileItem:
         self.type = type_
 
 class RemoteFileManagerDialog(QDialog):
-    def __init__(self):
+    def __init__(self, sshIp, sshPort, sshUser, sshPassword, sshDefaultFolder):
         super().__init__()
+
+        self.host = sshIp
+        self.port = sshPort
+        self.sshUser = sshUser
+        self.sshPassword = sshPassword
+        self.sshDefaultFolder = sshDefaultFolder
+
         self.setWindowTitle("远程文件管理")
         self.resize(600, 400)
 
         # 主布局
-        self.mainLayout = QHBoxLayout(self)
+        self.mainLayout = QVBoxLayout(self)
         self.mainLayout.setContentsMargins(10, 10, 10, 10)
         self.mainLayout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+
+        # 顶部路径栏
+        self.topPathGrid = QWidget()
+        self.topPathLayout = QHBoxLayout(self.topPathGrid)
+        self.topPathLayout.setContentsMargins(10, 10, 10, 10)
+        self.mainLayout.addWidget(self.topPathGrid, 0, Qt.AlignmentFlag.AlignTop)
+
+        # 路径
+        self.lb_currentPathlb = QLabel("当前位置：")
+        self.topPathLayout.addWidget(self.lb_currentPathlb)
+        
+        self.lb_currentPath = QLabel("当前12312312")
+        self.topPathLayout.addWidget(self.lb_currentPath)
+
+        # 挤占右边空间
+        self.topPathLayout.addStretch()  
 
         # 文件浏览器滚动区域
         self.fileWarpper = QScrollArea()
@@ -87,7 +115,6 @@ class RemoteFileManagerDialog(QDialog):
         self.buttomLayout.addWidget(self.btn_uploadFile, 0, Qt.AlignmentFlag.AlignRight)
 
 
-
         # 生成大量列表项
         self.LoadFiles()
 
@@ -119,9 +146,16 @@ class RemoteFileManagerDialog(QDialog):
             self.fileManagerList.setItemWidget(list_item, item_widget)
     
     def _on_file_delete_clicked(self, filename):
-        print(f"按钮点击: {filename}")
+        ssh = paramiko.SSHClient()
+        ssh.connect(host = self.host,
+                    port = self.port,
+                    username = self.sshUser, 
+                    password = self.sshPassword,
+                    timeout = 10, 
+                    banner_timeout = 10, 
+                    auth_timeout = 10)
+        sshOperation.DelRemoteFile(ssh, filename)
         return
-    
 
     def _on_file_download_clicked(self, filename):
         print(f"按钮点击: {filename}")
@@ -132,6 +166,11 @@ class RemoteFileManagerDialog(QDialog):
 
     def _on_refresh(self):
         return
+
+    def CalcCurrentPath(self) -> str:
+        
+        return ""
+
 
 
 
