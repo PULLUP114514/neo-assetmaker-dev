@@ -26,7 +26,7 @@ from qfluentwidgets import (
 )
 
 from gui.styles import COLOR_PREVIEW_BG
-
+from gui.main_window import MainWindow
 logger = logging.getLogger(__name__)
 
 
@@ -37,7 +37,6 @@ class AssetListItemWidget(QWidget):
         super().__init__(parent)
         self.asset_data = asset_data
         self.parent_page = parent  # RemotePage实例
-
         # 左侧组件
         self.thumbnail_label = QLabel()
         self.thumbnail_label.setFixedSize(64, 64)
@@ -327,7 +326,7 @@ class RemotePage(QWidget):
         host, port, user, password,remote_path = self._get_ssh_params()
         from gui.widgets.RemoteFileManager import RemoteFileManagerDialog
         dialog = RemoteFileManagerDialog(
-            host, port, user, password,remote_path
+            self, self.parent, host, port, user, password,remote_path
         )
         dialog.exec()
         return
@@ -762,13 +761,13 @@ class RemotePage(QWidget):
         self._log("INFO", f"编辑素材已下载到: {local_path}")
 
         # 尝试通知主窗口打开
-        main_window = self.window()
-        if hasattr(main_window, '_open_project'):
+        self.parent = self.window()
+        if hasattr(self.parent, '_open_project'):
             # 查找 JSON 配置文件
             json_files = [f for f in os.listdir(local_path) if f.endswith('.json')]
             if json_files:
                 json_path = os.path.join(local_path, json_files[0])
-                main_window._open_project(json_path)
+                self.parent._open_project(json_path)
                 self._log("INFO", f"已在主窗口中打开: {json_files[0]}")
             else:
                 self._log("WARNING", "素材包中未找到 JSON 配置文件")
@@ -782,12 +781,9 @@ class RemotePage(QWidget):
             
             # 查找JSON配置文件
             json_files = self.ListChildrenDirs(local_path)
-            from gui.main_window import MainWindow
-            main_window = self.window()
-
             # 发送配置路径给主窗口
-            main_window.ReadProjectFromJson(os.path.join(json_files[0], "epconfig.json"))
-            main_window._on_sidebar_material()
+            self.parent.ReadProjectFromJson(os.path.join(json_files[0], "epconfig.json"))
+            self.parent._on_sidebar_material()
 
     def _on_edit_for_asset(self, asset_data: dict):
         if self._is_busy:

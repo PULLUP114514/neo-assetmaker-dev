@@ -15,9 +15,8 @@ from qfluentwidgets import (
 from core import sshOperation
 import paramiko
 from scp import SCPClient
-
-
-enableDebug = True
+import logging
+logger = logging.getLogger(__name__)
 
 # 👂？ 我没对象 所以创建一个 :D
 class FileItem:
@@ -26,9 +25,9 @@ class FileItem:
         self.type = type_
 
 class RemoteFileManagerDialog(QDialog):
-    def __init__(self, sshIp, sshPort, sshUser, sshPassword, sshDefaultFolder):
+    def __init__(self, parent, mainwindow, sshIp, sshPort, sshUser, sshPassword, sshDefaultFolder):
         super().__init__()
-
+        self.main_window = mainwindow
         self.host = sshIp
         self.port = sshPort
         self.sshUser = sshUser
@@ -145,7 +144,7 @@ class RemoteFileManagerDialog(QDialog):
             self.fileManagerList.addItem(list_item)
             self.fileManagerList.setItemWidget(list_item, item_widget)
     
-    def _on_file_delete_clicked(self, filename):
+    def StartSSH(self) -> paramiko.SSHClient:
         ssh = paramiko.SSHClient()
         ssh.connect(host = self.host,
                     port = self.port,
@@ -154,7 +153,18 @@ class RemoteFileManagerDialog(QDialog):
                     timeout = 10, 
                     banner_timeout = 10, 
                     auth_timeout = 10)
-        sshOperation.DelRemoteFile(ssh, filename)
+        return ssh
+
+    def _on_file_delete_clicked(self, filename):
+        try:
+            ssh = self.StartSSH()
+
+            # 此处需要拼接路径
+
+
+            sshOperation.DelRemoteFile(ssh, filename)
+        except Exception as e:
+            logger.error(f"刷新失败{e}")
         return
 
     def _on_file_download_clicked(self, filename):
@@ -165,18 +175,19 @@ class RemoteFileManagerDialog(QDialog):
         return
 
     def _on_refresh(self):
+        try:
+            ssh = self.StartSSH()
+            fileList = self.getFolder(ssh)
+        except Exception as e:
+            logger.error(f"刷新失败{e}")
         return
 
     def CalcCurrentPath(self) -> str:
         
         return ""
+    
+    # def getFolder(self, ssh : ) -> list:
 
-
-
-
-
-if __name__ == "__main__" and enableDebug == True:
-    app = QApplication(sys.argv)
-    dlg = RemoteFileManagerDialog()
-    dlg.show()
-    sys.exit(app.exec())
+    #     return [
+    #         FileItem("file", "folder")
+    #     ]
