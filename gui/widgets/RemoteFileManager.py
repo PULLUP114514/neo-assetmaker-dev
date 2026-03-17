@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QHBoxLayout,
     QApplication,
+    QInputDialog,
 )
 from PyQt6.QtCore import Qt
 import sys
@@ -156,7 +157,7 @@ class RemoteFileManagerWindow(QWidget):
         )
 
         self.btn_Rename = PushButton("重命名")
-        self.btn_Rename.setIcon(FluentIcon.DELETE)
+        self.btn_Rename.setIcon(FluentIcon.EDIT)
         self.btn_Rename.setMinimumWidth(buttonWidth)
         self.buttomLayout.addWidget(self.btn_Rename, 0, Qt.AlignmentFlag.AlignRight)
         self.btn_Rename.clicked.connect(self._on_file_rename_clicked)
@@ -194,22 +195,36 @@ class RemoteFileManagerWindow(QWidget):
         self._on_refresh()
         return
 
-    def DetectProtectedPath(self, path: str):
-        """检测当前文件夹/文件夹是否允许被删除"""
-        protectedDirList = [
-            ".",
-            "..",
-        ]
-        for prt in protectedDirList:
-            if path == prt:
-                return False
-        return True
-
     def _on_file_rename_clicked(self):
         item = self.fileManagerList.currentItem()
         if not item:
             return
-        filename = item.data(Qt.ItemDataRole.UserRole)
+        filename = item.data(Qt.ItemDataRole.UserRole)[2:]
+        if not DetectProtectedPath(filename):
+            return
+        while True:
+            text, ok = QInputDialog.getText(
+                self,
+                "重命名...",
+                f"正在重命名:{self.lb_currentPath.text()}/{filename}\n输入目标名称：",  # 父窗口  # 标题  # 提示信息
+            )
+            if ok:
+                if CheckValidFileName(text):
+                    break
+                else:
+                    continue
+            else:  # 用户按下“取消”
+                return
+        try:
+            if not self.TryStartSSH():
+                raise ValueError("初始化SSH失败")
+            stdin, stdout, stderr = self.ssh.exec_command(
+                f'mv "{self.lb_currentPath.text()}/{filename}" "{self.lb_currentPath.text()}/{text}"'
+            )
+            stdout.channel.recv_exit_status()
+            self._on_refresh()
+        except Exception as ex:
+            logger.error(f"重命名失败{ex}", stack_info=True)
 
     def LoadFiles(self, fileList: list):
         # 检查颜色调色板
@@ -295,16 +310,22 @@ class RemoteFileManagerWindow(QWidget):
         return False
 
     def _on_file_delete_clicked(self):
+        item = self.fileManagerList.currentItem()
+        if not item:
+            return
+        filename = item.data(Qt.ItemDataRole.UserRole)
+        result = QMessageBox.question(
+            self,
+            "删除...",
+            "是否确认删除：{}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
         try:
-            if not self.TryStartSSH():
+            if self.TryStartSSH():
                 raise ValueError("初始化SSH失败")
-
-            # 此处需要拼接路径
-
-            # sshOperation.DelRemoteFile(ssh)
-        except Exception as e:
-            logger.error(f"刷新失败{e}", stack_info=True)
-        return
+            self.ssh.exec_command(f"rm -rf {self.lb_currentPath.text()}/{filename}")
+        except Exception as ex:
+            logger.error(f"重命名失败{ex}", stack_info=True)
 
     def _on_file_download_clicked(self):
         print(f"按钮点击:")
@@ -455,6 +476,31 @@ class RemoteFileManagerWindow(QWidget):
             import os
 
             nextDir = nextDir[2:]  # 从索引 2 开始取，前两个字符" ./ "被删除
-            newPath = os.path.join(currentPath, nextDir)
+            if currentPath != "/":
+                newPath = f"{currentPath}/{nextDir}"
+            else:
+                newPath = f"/{nextDir}"
             self.lb_currentPath.setText(newPath)
             return newPath
+
+
+def CheckValidFileName(name: str) -> bool:
+    if not name or name.strip() == "":
+        return False  # 不能为空
+    if "/" in name:
+        return False
+    if len(name) > 255:
+        return False
+    return True
+
+
+def DetectProtectedPath(path: str):
+    """检测当前文件夹/文件夹是否允许被更改"""
+    protectedDirList = [
+        ".",
+        "..",
+    ]
+    for prt in protectedDirList:
+        if path == prt:
+            return False
+    return True
