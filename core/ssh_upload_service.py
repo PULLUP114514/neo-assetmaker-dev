@@ -147,6 +147,7 @@ class SshRestartWorker(QThread):
             self.log_message.emit("INFO", "开始重启DrmApp...")
             ssh = _create_ssh_client(host, port, user, password)
             from core.sshOperation import StopDrmApp, StartDrmApp
+
             StopDrmApp(ssh)
             self.log_message.emit("INFO", "DrmApp 已停止，正在启动...")
             StartDrmApp(ssh)

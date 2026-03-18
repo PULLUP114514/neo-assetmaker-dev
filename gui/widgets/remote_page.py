@@ -459,7 +459,6 @@ class RemotePage(QWidget):
         self.btnRefreshList.setEnabled(not busy and self._is_connected)
         self.btnUploadLocal.setEnabled(not busy and self._is_connected)
         self.btnRestartDrm.setEnabled(not busy and self._is_connected)
-        self.btnConnect.setEnabled(not busy and self._is_connected)
         # 设置中栏列表项按钮的启用状态
         for i in range(self.assetDetailList.count()):
             item = self.assetDetailList.item(i)
@@ -491,6 +490,7 @@ class RemotePage(QWidget):
             # 断开连接
             self._is_connected = False
             self._update_connection_ui()
+            self._set_busy(False)
             self._log("INFO", "已断开连接")
             return
 
