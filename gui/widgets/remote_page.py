@@ -870,13 +870,28 @@ class RemotePage(QWidget):
                 duration=5000,
             )
 
-            # 查找JSON配置文件
-            json_files = self.ListChildrenDirs(local_path)
-            # 发送配置路径给主窗口
-            self.parent.ReadProjectFromJson(
-                os.path.join(json_files[0], "epconfig.json")
-            )
-            self.parent._on_sidebar_material()
+            # 查找 JSON 配置目录
+            json_dirs = self.ListChildrenDirs(local_path)
+            if not json_dirs:
+                self._log("WARNING", "素材包中未找到 JSON 配置目录")
+                return
+
+            json_config_path = os.path.join(json_dirs[0], "epconfig.json")
+
+            # 发送配置路径给主窗口（在主窗口支持相关接口的情况下）
+            if (
+                self.parent is not None
+                and hasattr(self.parent, "ReadProjectFromJson")
+                and hasattr(self.parent, "_on_sidebar_material")
+            ):
+                try:
+                    self.parent.ReadProjectFromJson(json_config_path)
+                    self.parent._on_sidebar_material()
+                except Exception as exc:
+                    logger.exception("打开素材配置失败: %s", exc)
+                    self._log("ERROR", f"打开素材配置失败: {exc}")
+            else:
+                self._log("WARNING", "主窗口不支持从 JSON 打开素材配置")
 
     def _on_edit_for_asset(self, asset_data: dict):
         if self._is_busy:
