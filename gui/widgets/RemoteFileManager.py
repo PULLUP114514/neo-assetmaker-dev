@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QApplication,
     QInputDialog,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 import sys
 from qfluentwidgets import (
     SimpleCardWidget,
@@ -115,9 +115,10 @@ class RemoteFileManagerWindow(QWidget):
         self.sshUser = sshUser
         self.sshPassword = sshPassword
         self.sshDefaultFolder = sshDefaultFolder
+        progress_signal = pyqtSignal(int, str)  # 进度
 
         self.setWindowTitle("远程文件管理")
-        self.resize(1200, 1000)
+        self.resize(1350, 1000)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)  # 阻塞主窗口
 
         # 主布局
@@ -173,11 +174,10 @@ class RemoteFileManagerWindow(QWidget):
         self.buttomLayout.setContentsMargins(10, 10, 10, 10)
         self.containerLayout.addWidget(self.buttomGrid)
 
-        # 挤占左边空间
-        self.buttomLayout.addStretch()
+        self.lb_DragTip = QLabel("可以将文件直接拖拽到上方列表来上传到当前文件夹")
+        self.buttomLayout.addWidget(self.lb_DragTip, 1, Qt.AlignmentFlag.AlignLeft)
 
-        buttonWidth = 100
-
+        buttonWidth = 125
         self.btn_refresh = PushButton("刷新")
         self.btn_refresh.setIcon(FluentIcon.UPDATE)
         self.btn_refresh.setMinimumWidth(buttonWidth)
@@ -193,6 +193,12 @@ class RemoteFileManagerWindow(QWidget):
         self.buttomLayout.addWidget(
             self.btn_goParentFolder, 0, Qt.AlignmentFlag.AlignRight
         )
+
+        self.btn_NewFolder = PushButton("新建文件夹")
+        self.btn_NewFolder.setIcon(FluentIcon.FOLDER)
+        self.btn_NewFolder.setMinimumWidth(buttonWidth)
+        self.buttomLayout.addWidget(self.btn_NewFolder, 0, Qt.AlignmentFlag.AlignRight)
+        self.btn_NewFolder.clicked.connect(self._on_new_folder_clicked)
 
         self.btn_Rename = PushButton("重命名")
         self.btn_Rename.setIcon(FluentIcon.EDIT)
@@ -228,6 +234,37 @@ class RemoteFileManagerWindow(QWidget):
 
         self._on_refresh()
 
+    def _on_new_folder_clicked(self):
+        try:
+            while True:
+                text, ok = QInputDialog.getText(
+                    self,
+                    "新建文件夹...",
+                    f"输入文件夹名:",  # 父窗口  # 标题  # 提示信息
+                )
+                if ok:
+                    if CheckValidFileName(text):
+                        break
+                    else:
+                        continue
+                else:  # 用户按下“取消”
+                    return
+            if not self.TryStartSSH():
+                raise ValueError("初始化SSH失败")
+            currentPath = self.lb_currentPath.text()
+            if currentPath == "/":
+                currentPath = ""
+            _, stdout, _ = self.ssh.exec_command(
+                f"mkdir {currentPath}/{text}",
+                timeout=15,
+            )
+            stdout.channel.recv_exit_status()
+        except Exception as e:
+            logger.error(f"新建文件夹失败{e}", stack_info=True)
+            self.show_error(f"新建文件夹失败{e}")
+        finally:
+            self._on_refresh()
+
     def show_error(self, message: str, title: str = "错误"):
         msg = QMessageBox()
         msg.setWindowTitle(title)
@@ -236,48 +273,40 @@ class RemoteFileManagerWindow(QWidget):
         msg.exec()
 
     def handle_drop(self, files, folders):
-        import threading
-
         print("文件:", files)
         print("文件夹:", folders)
 
-        # 展开文件夹
-        all_files = list(files)
+        all_files = []
+        offsetPath = []
 
-        # offset
-        offetPath = []
+        # 处理单独拖入的文件
         for file in files:
-            offetPath.append(os.path.dirname(file))
+            all_files.append(file)
+            offsetPath.append(os.path.basename(file))  # 仅文件名
 
+        # 处理文件夹
         for folder in folders:
             for root, dirs, fs in os.walk(folder):
                 for f in fs:
-                    all_files.append(os.path.join(root, f))
-                    offetPath.append(get_relative_path(folder, os.path.join(root, f)))
+                    full_path = os.path.join(root, f)
+
+                    # 计算相对路径（关键）
+                    rel_path = os.path.relpath(full_path, os.path.dirname(folder))
+
+                    all_files.append(full_path)
+                    offsetPath.append(rel_path)
+
         try:
             if not self.TryStartSSH():
                 raise ValueError("初始化SSH失败")
-            uploadThread = threading.Thread(
-                target=self.DragUploadLoop,
-                args=(all_files, offetPath),
-                daemon=True,
-            )
-            uploadThread.start()
-        except Exception as e:
-            self.show_error(f"拖拽上传失败{e}")
-            logger.error(f"拖拽上传失败{e}", stack_info=True)
 
-    def DragUploadLoop(self, all_files, offetPath):
-        try:
-            for i in range(0, len(all_files)):
-                sshOperation.UploadFile(
-                    self.ssh,
-                    all_files[i],
-                    f"{self.lb_currentPath.text()}/{offetPath[i]}",
-                    self.reportProcess,
-                    0,
-                    os.path.getsize(all_files[i]),
-                )
+            self.worker = sshOperation.UploadWorker(
+                self.ssh, self.lb_currentPath.text(), all_files, offsetPath
+            )
+
+            self.worker.progress_signal.connect(self.reportProcess)
+            self.worker.start()
+
         except Exception as e:
             self.show_error(f"拖拽上传失败{e}")
             logger.error(f"拖拽上传失败{e}", stack_info=True)
@@ -568,15 +597,6 @@ class RemoteFileManagerWindow(QWidget):
         return fileList
 
     def reportProcess(self, processBarPositon: int, text: str):
-        QMetaObject.invokeMethod(
-            self,
-            "RemoteFileManagerWindow.updateGUI",
-            Qt.ConnectionType.QueuedConnection,
-            processBarPositon,
-            text,
-        )
-
-    def updateGUI(self, processBarPositon: int, text: str):
         self.progressBar.setValue(processBarPositon)
         self.lb_process.setText(text)
         if processBarPositon == 100:
