@@ -22,7 +22,8 @@ from config.epconfig import EPConfig, CONFIG_FILENAME
 from qfluentwidgets import (
     PushButton, PrimaryPushButton, ToolButton,
     TabWidget, SegmentedWidget,
-    SubtitleLabel,
+    SubtitleLabel, StrongBodyLabel, BodyLabel, CaptionLabel,
+    CardWidget, HyperlinkButton,
     ComboBox, SpinBox,
     DoubleSpinBox, CheckBox, LineEdit,
     ScrollArea, FluentIcon,
@@ -36,7 +37,7 @@ from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QDoubleSpinBox,
     QSpinBox, QLineEdit, QTabWidget, QDialog
 )
-from PyQt6.QtCore import Qt, QSettings, QTimer, QUrl, QCoreApplication
+from PyQt6.QtCore import Qt, QSettings, QTimer
 import os
 import sys
 import logging
@@ -45,8 +46,6 @@ import shutil
 from typing import Optional
 
 logger = logging.getLogger(__name__)
-
-QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
 
 class MainWindow(QMainWindow):
@@ -1849,86 +1848,105 @@ class MainWindow(QMainWindow):
             self._remote_page.setVisible(False)
 
         if not hasattr(self, '_about_widget'):
-            from PyQt6.QtWidgets import QLabel, QVBoxLayout, QTextBrowser
-
             self._about_widget = QWidget()
             self._about_widget.setVisible(False)
 
             about_layout = QVBoxLayout(self._about_widget)
-            about_layout.setContentsMargins(20, 10, 20, 10)  # 减小上下边距
+            about_layout.setContentsMargins(20, 10, 20, 10)
             about_layout.setSpacing(15)
 
-            title_label = QLabel("项目介绍")
-            setCustomStyleSheet(
-                title_label,
-                "font-size: 18px; font-weight: bold; color: #333;",
-                "font-size: 18px; font-weight: bold; color: #eee;"
-            )
+            title_label = SubtitleLabel("项目介绍")
             about_layout.addWidget(title_label)
 
-            try:
-                from PyQt6.QtWebEngineWidgets import QWebEngineView
-                web_view = QWebEngineView()
-                web_view.setUrl(QUrl("https://ep.iccmc.cc"))
-                setCustomStyleSheet(
-                    web_view,
-                    "border: 1px solid #e9ecef; border-radius: 8px;",
-                    "border: 1px solid #555; border-radius: 8px;"
-                )
-                about_layout.addWidget(web_view)
+            # 滚动区域
+            scroll_area = ScrollArea()
+            scroll_area.setWidgetResizable(True)
+            scroll_area.enableTransparentBackground()
 
-                url_label = QLabel(
-                    f"网站链接: <a href='https://ep.iccmc.cc'>https://ep.iccmc.cc</a>")
-                url_label.setOpenExternalLinks(True)
-                _tc = themeColor().name()
-                setCustomStyleSheet(
-                    url_label,
-                    f"color: {_tc}; text-decoration: underline;",
-                    f"color: {_tc}; text-decoration: underline;"
-                )
-                about_layout.addWidget(url_label)
+            scroll_content = QWidget()
+            scroll_layout = QVBoxLayout(scroll_content)
+            scroll_layout.setContentsMargins(0, 0, 10, 0)
+            scroll_layout.setSpacing(12)
 
-            except Exception as e:
-                text_browser = QTextBrowser()
-                text_browser.setOpenExternalLinks(True)
-                setCustomStyleSheet(
-                    text_browser,
-                    "border: 1px solid #e9ecef; border-radius: 8px;",
-                    "border: 1px solid #555; border-radius: 8px;"
-                )
-                _tc = themeColor().name()
-                error_html = f"""
-                <div style="color: {_tc}; padding: 10px;">
-                    <h3>无法加载网页视图</h3>
-                    <p>错误信息: {str(e)}</p>
-                    <p>请直接访问: <a href='https://ep.iccmc.cc'>https://ep.iccmc.cc</a></p>
-                    <h3>项目简介</h3>
-                    <p>迷你Linux手持开发板基于F1C200S的开源硬件项目一款面向折腾与二次开发的迷你 Linux 手持开发板</p>
-                    <h4>主要特性</h4>
-                    <ul>
-                        <li>高性能主控基于F1C200S (ARM926EJ-S)，默认408MHz，支持超频至720MHz，内置64MB RAM</li>
-                        <li>高清竖屏显示3.0英寸 360×640 高分辨率竖屏，ST7701S驱动，支持H.264硬件解码</li>
-                        <li>完善供电方案1500mAh锂电池，TP4056充电管理，续航持久（大概）</li>
-                        <li>丰富扩展接口I²C、UART×2、SPI、GPIO×3、ADC，满足各种硬件实验需求</li>
-                        <li>主线Linux支持Buildroot构建系统，Linux主线5.4.77内核，完整Linux生态</li>
-                        <li>完全开源硬件/软件资料完全开源，欢迎社区共同完善</li>
-                    </ul>
-                    <h4>最新版本</h4>
-                    <p>当前版本：Ver.0.6</p>
-                </div>
-                """
-                text_browser.setHtml(error_html)
-                about_layout.addWidget(text_browser)
+            # 卡片 1 — 项目概述
+            card_overview = CardWidget()
+            card_overview_layout = QVBoxLayout(card_overview)
+            card_overview_layout.setContentsMargins(20, 16, 20, 16)
+            card_overview_layout.setSpacing(8)
+            card_overview_layout.addWidget(StrongBodyLabel("项目概述"))
+            card_overview_layout.addWidget(BodyLabel(
+                "一款基于 F1C200S 的迷你 Linux 手持开发板，"
+                "面向折腾与二次开发的开源硬件项目。"
+            ))
+            link_btn = HyperlinkButton("https://ep.iccmc.cc", "访问项目官网")
+            card_overview_layout.addWidget(link_btn)
+            scroll_layout.addWidget(card_overview)
 
-                url_label = QLabel(
-                    f"网站链接: <a href='https://ep.iccmc.cc'>https://ep.iccmc.cc</a>")
-                url_label.setOpenExternalLinks(True)
-                setCustomStyleSheet(
-                    url_label,
-                    f"color: {_tc}; text-decoration: underline;",
-                    f"color: {_tc}; text-decoration: underline;"
-                )
-                about_layout.addWidget(url_label)
+            # 卡片 2 — 硬件规格
+            card_hw = CardWidget()
+            card_hw_layout = QVBoxLayout(card_hw)
+            card_hw_layout.setContentsMargins(20, 16, 20, 16)
+            card_hw_layout.setSpacing(6)
+            card_hw_layout.addWidget(StrongBodyLabel("硬件规格"))
+            hw_specs = [
+                ("主控", "F1C200S (ARM926EJ-S)，默认 408MHz，可超频至 720MHz，内置 64MB RAM"),
+                ("存储", "TF 卡 / SPI Flash"),
+                ("屏幕", "3.0 英寸 360×640 竖屏，ST7701S 驱动，支持 H.264 硬件解码"),
+                ("电池", "1500mAh 锂电池，TP4056 充电管理"),
+                ("接口", "I²C、UART×2、SPI、GPIO×3、ADC"),
+            ]
+            for key, value in hw_specs:
+                row = QHBoxLayout()
+                row.setSpacing(8)
+                key_label = CaptionLabel(key)
+                key_label.setFixedWidth(40)
+                row.addWidget(key_label)
+                row.addWidget(BodyLabel(value), 1)
+                card_hw_layout.addLayout(row)
+            scroll_layout.addWidget(card_hw)
+
+            # 卡片 3 — 软件平台
+            card_sw = CardWidget()
+            card_sw_layout = QVBoxLayout(card_sw)
+            card_sw_layout.setContentsMargins(20, 16, 20, 16)
+            card_sw_layout.setSpacing(6)
+            card_sw_layout.addWidget(StrongBodyLabel("软件平台"))
+            sw_specs = [
+                ("系统", "Buildroot 构建，Linux 主线 5.4.77 内核"),
+                ("协议", "完全开源（硬件 / 软件资料）"),
+                ("版本", f"素材制作器 v{APP_VERSION}"),
+            ]
+            for key, value in sw_specs:
+                row = QHBoxLayout()
+                row.setSpacing(8)
+                key_label = CaptionLabel(key)
+                key_label.setFixedWidth(40)
+                row.addWidget(key_label)
+                row.addWidget(BodyLabel(value), 1)
+                card_sw_layout.addLayout(row)
+            scroll_layout.addWidget(card_sw)
+
+            # 卡片 4 — 主要特性
+            card_features = CardWidget()
+            card_features_layout = QVBoxLayout(card_features)
+            card_features_layout.setContentsMargins(20, 16, 20, 16)
+            card_features_layout.setSpacing(6)
+            card_features_layout.addWidget(StrongBodyLabel("主要特性"))
+            features = [
+                "高性能主控 — ARM926EJ-S 核心，支持超频至 720MHz",
+                "高清竖屏显示 — 3.0 英寸 360×640，H.264 硬件解码",
+                "完善供电方案 — 1500mAh 锂电池 + TP4056 充电管理",
+                "丰富扩展接口 — I²C / UART / SPI / GPIO / ADC",
+                "主线 Linux 支持 — Buildroot + Linux 5.4.77 内核",
+                "完全开源 — 硬件与软件资料全部开源，欢迎社区共建",
+            ]
+            for feat in features:
+                card_features_layout.addWidget(BodyLabel(f"• {feat}"))
+            scroll_layout.addWidget(card_features)
+
+            scroll_layout.addStretch()
+            scroll_area.setWidget(scroll_content)
+            about_layout.addWidget(scroll_area)
 
             self.content_layout.addWidget(self._about_widget)
 
