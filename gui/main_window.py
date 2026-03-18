@@ -26,7 +26,7 @@ from qfluentwidgets import (
     ComboBox, SpinBox,
     DoubleSpinBox, CheckBox, LineEdit,
     ScrollArea, FluentIcon,
-    setCustomStyleSheet, isDarkTheme
+    setCustomStyleSheet, isDarkTheme, setThemeColor, themeColor
 )
 from PyQt6.QtGui import QAction, QKeySequence, QIcon, QShortcut
 from PyQt6.QtWidgets import (
@@ -177,10 +177,10 @@ class MainWindow(QMainWindow):
         header_layout.setContentsMargins(20, 8, 20, 8)
         header_layout.setSpacing(24)
 
-        logo_label = QLabel("PRTS")
+        self.logo_label = QLabel("PRTS")
         _logo_qss = "QLabel { background-color: white; color: #ff6b8b; border-radius: 16px; padding: 8px 12px; font-size: 14px; font-weight: bold; }"
-        setCustomStyleSheet(logo_label, _logo_qss, _logo_qss)
-        header_layout.addWidget(logo_label)
+        setCustomStyleSheet(self.logo_label, _logo_qss, _logo_qss)
+        header_layout.addWidget(self.logo_label)
 
         title_label = QLabel(APP_NAME)
         setCustomStyleSheet(title_label, "font-size: 16px; font-weight: bold;", "font-size: 16px; font-weight: bold;")
@@ -644,8 +644,18 @@ class MainWindow(QMainWindow):
         qconfig.themeChanged.connect(self._on_system_theme_changed)
 
     def _on_system_theme_changed(self):
-        """系统亮/暗主题切换时，刷新窗口背景为对应中性色"""
+        """系统亮/暗主题切换时，刷新窗口背景和自定义样式"""
         self._bg_color = self._dark_bg_color if isDarkTheme() else self._light_bg_color
+
+        # 重新应用当前主题色到自定义控件（header_bar、sidebar 等）
+        settings = self._read_user_settings()
+        theme_color = settings.get('theme_color', '#ff6b8b')
+        self._apply_theme_color(theme_color)
+
+        # 如果当前有背景图片，重新应用图片模式样式（content_bg 等值依赖 isDarkTheme）
+        if self._bg_pixmap is not None:
+            self._apply_image_mode_styles()
+
         self.update()
 
     def _on_ssh_upload(self):
@@ -822,10 +832,11 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(15)
 
         title_label = QLabel("欢迎使用明日方舟通行证素材制作器 v2.0")
+        _tc = themeColor().name()
         setCustomStyleSheet(
             title_label,
-            "font-size: 20px; font-weight: bold; color: #ff6b8b; text-align: center;",
-            "font-size: 20px; font-weight: bold; color: #ff6b8b; text-align: center;"
+            f"font-size: 20px; font-weight: bold; color: {_tc}; text-align: center;",
+            f"font-size: 20px; font-weight: bold; color: {_tc}; text-align: center;"
         )
         main_layout.addWidget(title_label)
 
@@ -1410,10 +1421,17 @@ class MainWindow(QMainWindow):
             )
             return
 
+        # 安装模式路径（扁平化）
         simulator_path = os.path.join(
             self._app_dir,
-            "simulator", "target", "release", "arknights_pass_simulator.exe"
+            "simulator", "arknights_pass_simulator.exe"
         )
+        # 开发模式 fallback：Cargo 默认输出路径
+        if not os.path.exists(simulator_path):
+            simulator_path = os.path.join(
+                self._app_dir,
+                "simulator", "target", "release", "arknights_pass_simulator.exe"
+            )
 
         if not os.path.exists(simulator_path):
             QMessageBox.information(
@@ -1478,7 +1496,8 @@ class MainWindow(QMainWindow):
 
             # 设置工作目录为应用根目录，确保模拟器能找到 FFmpeg DLL
             # Windows DLL 搜索顺序：exe 所在目录 → system32 → PATH
-            # 模拟器 exe 在 simulator/target/release/ 子目录，无法找到根目录的 DLL
+            # 模拟器 exe 在 simulator/ 子目录（安装模式）或 simulator/target/release/（开发模式），
+            # 均无法直接找到根目录的 FFmpeg DLL，需要通过 cwd 和 PATH 解决
             popen_kwargs['cwd'] = self._app_dir
 
             # 双保险：将 app_dir 加入 PATH 环境变量
@@ -1486,13 +1505,18 @@ class MainWindow(QMainWindow):
             env['PATH'] = self._app_dir + os.pathsep + env.get('PATH', '')
             popen_kwargs['env'] = env
 
+            # Detect current theme to pass to simulator
+            from qfluentwidgets import isDarkTheme
+            theme = "dark" if isDarkTheme() else "light"
+
             proc = subprocess.Popen([
                 simulator_path,
                 "--config", config_path,
                 "--base-dir", self._base_dir,
                 "--app-dir", self._app_dir,
                 "--cropbox", f"{cropbox[0]},{cropbox[1]},{cropbox[2]},{cropbox[3]}",
-                "--rotation", str(rotation)
+                "--rotation", str(rotation),
+                "--theme", theme,
             ], **popen_kwargs)
 
             logger.info(f"模拟器已启动: {simulator_path}")
@@ -1856,10 +1880,11 @@ class MainWindow(QMainWindow):
                 url_label = QLabel(
                     f"网站链接: <a href='https://ep.iccmc.cc'>https://ep.iccmc.cc</a>")
                 url_label.setOpenExternalLinks(True)
+                _tc = themeColor().name()
                 setCustomStyleSheet(
                     url_label,
-                    "color: #ff6b8b; text-decoration: underline;",
-                    "color: #ff6b8b; text-decoration: underline;"
+                    f"color: {_tc}; text-decoration: underline;",
+                    f"color: {_tc}; text-decoration: underline;"
                 )
                 about_layout.addWidget(url_label)
 
@@ -1871,8 +1896,9 @@ class MainWindow(QMainWindow):
                     "border: 1px solid #e9ecef; border-radius: 8px;",
                     "border: 1px solid #555; border-radius: 8px;"
                 )
+                _tc = themeColor().name()
                 error_html = f"""
-                <div style="color: #ff6b8b; padding: 10px;">
+                <div style="color: {_tc}; padding: 10px;">
                     <h3>无法加载网页视图</h3>
                     <p>错误信息: {str(e)}</p>
                     <p>请直接访问: <a href='https://ep.iccmc.cc'>https://ep.iccmc.cc</a></p>
@@ -1899,8 +1925,8 @@ class MainWindow(QMainWindow):
                 url_label.setOpenExternalLinks(True)
                 setCustomStyleSheet(
                     url_label,
-                    "color: #ff6b8b; text-decoration: underline;",
-                    "color: #ff6b8b; text-decoration: underline;"
+                    f"color: {_tc}; text-decoration: underline;",
+                    f"color: {_tc}; text-decoration: underline;"
                 )
                 about_layout.addWidget(url_label)
 
@@ -2400,6 +2426,9 @@ class MainWindow(QMainWindow):
 
         elif setting_name == 'theme_color':
             self._apply_theme_color(value)
+            # 如果当前有自定义背景图片，刷新图片模式的 QMainWindow 级 QSS（使用新主题色）
+            if self._bg_pixmap is not None:
+                self._apply_image_mode_styles()
 
         elif setting_name == 'theme_image':
             if value:
@@ -2446,10 +2475,9 @@ class MainWindow(QMainWindow):
                     settings = json.load(f)
 
             if theme_name == '默认':
+                self._bg_pixmap = None
+                self.setStyleSheet("")
                 self._apply_default_theme()
-            elif theme_name == '自定义':
-                theme_color = settings.get('theme_color', '#ff6b8b')
-                self._apply_theme_color(theme_color)
             elif theme_name == '自定义图片':
                 theme_color = settings.get('theme_color', '#ff6b8b')
                 self._apply_theme_color(theme_color)
@@ -2464,20 +2492,16 @@ class MainWindow(QMainWindow):
         """应用默认主题"""
         self._apply_theme_color('#ff6b8b')
 
-    def _apply_light_theme(self):
-        """应用浅色主题"""
-        self._apply_theme_color('#4CAF50')
-
-    def _apply_dark_theme(self):
-        """应用深色主题"""
-        self._apply_theme_color('#2196F3')
-
     def _apply_theme_color(self, color_hex):
         """应用主题颜色到界面"""
-        self._bg_color = self._dark_bg_color if isDarkTheme() else self._light_bg_color
-        self._bg_pixmap = None
-        self.setStyleSheet("")  # 清除 _apply_theme_image 残留的全局 QSS
-        self.update()
+        # 同步 QFluentWidgets 全局主题色（驱动 PrimaryPushButton 等内置控件）
+        setThemeColor(color_hex, lazy=True)
+
+        # 仅在当前没有自定义背景图片时，才重置为纯色背景
+        if self._bg_pixmap is None:
+            self._bg_color = self._dark_bg_color if isDarkTheme() else self._light_bg_color
+            self.setStyleSheet("")
+            self.update()
 
         if hasattr(self, 'header_bar'):
             header_qss = f"QWidget {{ background-color: {color_hex}; color: white; border-top-left-radius: 16px; border-top-right-radius: 16px; }} QLabel {{ font-weight: bold; font-size: 16px; }}"
@@ -2526,28 +2550,16 @@ class MainWindow(QMainWindow):
             )
             setCustomStyleSheet(btn, light_qss, dark_qss)
 
+        # 更新 logo 颜色
+        if hasattr(self, 'logo_label'):
+            logo_qss = f"QLabel {{ background-color: white; color: {color_hex}; border-radius: 16px; padding: 8px 12px; font-size: 14px; font-weight: bold; }}"
+            setCustomStyleSheet(self.logo_label, logo_qss, logo_qss)
+
         logger.info(f"应用主题颜色: {color_hex}")
 
     def _apply_theme_image(self, image_path):
         """应用主题图片到界面（带有毛玻璃效果）"""
         logger.info(f"应用主题图片: {image_path}")
-
-        theme_color = "#ff6b8b"
-        try:
-            import json
-            config_dir = os.path.join(
-                self._app_dir, "config")
-            config_file = os.path.join(config_dir, "user_settings.json")
-            
-            if os.path.exists(config_file):
-                with open(config_file, "r", encoding="utf-8") as f:
-                    settings = json.load(f)
-                    theme_color = settings.get('theme_color', '#ff6b8b')
-        except Exception as e:
-            logger.error(f"加载主题颜色失败: {e}")
-
-        # 将背景图片加载到 _bg_pixmap，由 paintEvent 绘制（支持圆角裁剪）
-        # 不再使用 QSS background-image（QSS 不裁剪窗口形状）
         from PyQt6.QtGui import QPixmap
         pixmap = QPixmap(image_path)
         if not pixmap.isNull():
@@ -2555,8 +2567,11 @@ class MainWindow(QMainWindow):
         else:
             logger.warning(f"主题图片加载失败: {image_path}")
             self._bg_pixmap = None
+        self._apply_image_mode_styles()
 
-        # 设置子 widget 样式（QMainWindow 背景由 paintEvent 绘制）
+    def _apply_image_mode_styles(self):
+        """应用图片模式下的子 widget 半透明样式"""
+        theme_color = themeColor().name()
         try:
             is_dark = isDarkTheme()
 
@@ -2601,11 +2616,11 @@ class MainWindow(QMainWindow):
             """
 
             self.setStyleSheet(style % (content_bg, theme_color, theme_color, status_bg, status_color, status_border))
-            self.update()  # 触发 paintEvent 重绘
+            self.update()
 
-            logger.info("主题图片已应用，带有半透明效果")
+            logger.info("图片模式样式已应用")
         except Exception as e:
-            logger.error(f"应用主题图片失败: {e}")
+            logger.error(f"应用图片模式样式失败: {e}")
 
     def _connect_timeline_to_preview(self, preview: VideoPreviewWidget):
         """将时间轴连接到指定预览器"""
