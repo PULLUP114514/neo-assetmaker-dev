@@ -1,5 +1,6 @@
 """此处所有的函数都应被try catch包裹，抛出异常由调用者处理"""
 
+from PyQt6.QtCore import QThread, pyqtSignal
 from functools import partial
 import time
 import json
@@ -151,10 +152,16 @@ def DelRemoteFile(ssh, remotePath) -> bool:
 
 
 def UploadFile(
-    ssh, localPath, remotePath, report=None, finishedSize: int = 0, totalSize: int = 0
+    ssh,
+    localPath,
+    remotePath: str,
+    report=None,
+    finishedSize: int = 0,
+    totalSize: int = 0,
 ):
     # stdin, stdout, stderr = ssh.exec_command(f"mkdir -p {os.path.dirname(remotePath)}")
     # stdout.channel.recv_exit_status()
+    remotePath = remotePath.replace("\\", "/")
     """上传文件"""
     if report == None:
         scp = SCPClient(ssh.get_transport())
@@ -163,6 +170,7 @@ def UploadFile(
             ssh.get_transport(),
             progress=partial(CalcUploadSpeed, report, finishedSize, totalSize),
         )
+    logger.info(f"uploading: {localPath} to {remotePath}")
     scp.put(localPath, remotePath)
     scp.close()
 
@@ -290,3 +298,33 @@ def UploadDir(
             # 递归上传子目录
             UploadDir(ssh, local_path, remote_path)
     currentUploadedSize = 0
+
+
+class UploadWorker(QThread):
+    progress_signal = pyqtSignal(int, str)  # 进度百分比, 文本
+
+    def __init__(self, ssh, currentPath, all_files, offetPath):
+        super().__init__()
+        self.ssh = ssh
+        self.all_files = all_files
+        self.offetPath = offetPath
+        self.currentPath = currentPath
+
+    def run(self):
+        for i, f in enumerate(self.all_files):
+            _, stdout, _ = self.ssh.exec_command(
+                f"mkdir {self.currentPath}/{os.path.dirname(self.offetPath[i])}",
+                timeout=15,
+            )
+            stdout.channel.recv_exit_status()
+            UploadFile(
+                self.ssh,
+                f,
+                f"{self.currentPath}/{self.offetPath[i]}",
+                self.report_progress,
+                0,
+                os.path.getsize(f),
+            )
+
+    def report_progress(self, percent, text):
+        self.progress_signal.emit(percent, text)
