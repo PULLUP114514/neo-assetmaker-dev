@@ -380,7 +380,7 @@ class RemotePage(QWidget):
             logger.error(f"启动shell失败{e}", stack_info=True)
             self.show_error(f"启动shell失败{e}")
         return
-        self.btnDeviceStream.clicked.connect(self._on_device_stream)
+        self.btnConnect.clicked.connect(self._on_device_stream)
 
     def _on_upload_remote_file(self):
         host, port, user, password, remote_path = self._get_ssh_params()
@@ -412,12 +412,12 @@ class RemotePage(QWidget):
             self._stream_widget.hide()
             self.assetDetailList.show()
             self.middleTitleLabel.setText("远程素材详情")
-            self.btnDeviceStream.setText("实时画面")
+            self.btnConnect.setText("实时画面")
         else:
             self.assetDetailList.hide()
             self._stream_widget.show()
             self.middleTitleLabel.setText("实时画面")
-            self.btnDeviceStream.setText("返回素材列表")
+            self.btnConnect.setText("返回素材列表")
 
     # ─── 日志 ────────────────────────────────────────────
 
@@ -459,7 +459,7 @@ class RemotePage(QWidget):
         self.btnRefreshList.setEnabled(not busy and self._is_connected)
         self.btnUploadLocal.setEnabled(not busy and self._is_connected)
         self.btnRestartDrm.setEnabled(not busy and self._is_connected)
-        self.btnDeviceStream.setEnabled(not busy and self._is_connected)
+        self.btnConnect.setEnabled(not busy and self._is_connected)
         # 设置中栏列表项按钮的启用状态
         for i in range(self.assetDetailList.count()):
             item = self.assetDetailList.item(i)
@@ -531,7 +531,7 @@ class RemotePage(QWidget):
             self.btnRefreshList.setEnabled(True)
             self.btnUploadLocal.setEnabled(True)
             self.btnRestartDrm.setEnabled(True)
-            self.btnDeviceStream.setEnabled(True)
+            self.btnConnect.setEnabled(True)
         else:
             self.connectionStatusLabel.setText("未连接")
             setCustomStyleSheet(
@@ -543,7 +543,7 @@ class RemotePage(QWidget):
             self.btnRefreshList.setEnabled(False)
             self.btnUploadLocal.setEnabled(False)
             self.btnRestartDrm.setEnabled(False)
-            self.btnDeviceStream.setEnabled(False)
+            self.btnConnect.setEnabled(False)
             # 断开时停止串流并切回素材列表
             if self._stream_widget is not None:
                 self._stream_widget.shutdown()
