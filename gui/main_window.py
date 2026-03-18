@@ -123,9 +123,6 @@ class MainWindow(QMainWindow):
         logger.info("主窗口初始化完成")
         self._initializing = False  # 初始化完成
 
-        # QSS 热重载（QSS_DEV=1 时激活）
-        from gui.qss_hot_reload import QSSHotReloader
-        self._qss_reloader = QSSHotReloader.try_attach(self)
 
     def _setup_icon(self):
         """设置窗口图标"""
