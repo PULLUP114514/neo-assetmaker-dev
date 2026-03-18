@@ -10,21 +10,35 @@ from datetime import datetime
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap, QFont
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-    QFileDialog, QLabel, QFrame, QListWidgetItem,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QSplitter,
+    QFileDialog,
+    QLabel,
+    QFrame,
+    QListWidgetItem,
     QMessageBox,
 )
 
 from qfluentwidgets import (
     SimpleCardWidget,
-    SubtitleLabel, StrongBodyLabel, CaptionLabel,
-    PrimaryPushButton, PushButton,
-    ProgressBar, ListWidget, PlainTextEdit,
-    FluentIcon, InfoBar, InfoBarPosition,
+    SubtitleLabel,
+    StrongBodyLabel,
+    CaptionLabel,
+    PrimaryPushButton,
+    PushButton,
+    ProgressBar,
+    ListWidget,
+    PlainTextEdit,
+    FluentIcon,
+    InfoBar,
+    InfoBarPosition,
     setCustomStyleSheet,
 )
 
 from gui.styles import COLOR_PREVIEW_BG
+from gui.main_window import MainWindow
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +50,16 @@ class AssetListItemWidget(QWidget):
         super().__init__(parent)
         self.asset_data = asset_data
         self.parent_page = parent  # RemotePage实例
-
         # 左侧组件
         self.thumbnail_label = QLabel()
         self.thumbnail_label.setFixedSize(64, 64)
         self.thumbnail_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.thumbnail_label.setStyleSheet("border: 1px solid #ccc; border-radius: 4px;")
+        self.thumbnail_label.setStyleSheet(
+            "border: 1px solid #ccc; border-radius: 4px;"
+        )
         self.thumbnail_label.setWordWrap(True)
 
-        self.name_label = CaptionLabel(asset_data.get('name', ''))
+        self.name_label = CaptionLabel(asset_data.get("name", ""))
         self.name_label.setMaximumHeight(16)
         self.uuid_label = CaptionLabel(f"UUID: {asset_data.get('uuid', '')}")
         self.uuid_label.setMaximumHeight(16)
@@ -62,7 +77,6 @@ class AssetListItemWidget(QWidget):
         # 布局
         left_layout = QVBoxLayout()
         left_layout.setSpacing(4)
-
 
         top_layout = QHBoxLayout()
         top_layout.setSpacing(8)
@@ -101,21 +115,25 @@ class AssetListItemWidget(QWidget):
     def _load_thumbnail(self):
         """加载缩略图"""
         try:
-            uuid = self.asset_data.get('uuid', '')
+            uuid = self.asset_data.get("uuid", "")
             if not uuid:
                 return
             local_path = os.path.join(os.getcwd(), "tmp", uuid)
             if not os.path.exists(local_path):
                 return
             from core.ssh_upload_service import GetJsonFatherKey
-            icon_path = GetJsonFatherKey(os.path.join(local_path, "epconfig.json"), "icon")
+
+            icon_path = GetJsonFatherKey(
+                os.path.join(local_path, "epconfig.json"), "icon"
+            )
             full_icon_path = os.path.join(local_path, icon_path)
             if os.path.exists(full_icon_path):
                 pixmap = QPixmap(full_icon_path)
                 scaled_pixmap = pixmap.scaled(
-                    64, 64,
+                    64,
+                    64,
                     Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation
+                    Qt.TransformationMode.SmoothTransformation,
                 )
                 self.thumbnail_label.setPixmap(scaled_pixmap)
             else:
@@ -199,7 +217,6 @@ class RemotePage(QWidget):
 
         self.mainLayout.addWidget(self.splitter, 1)
 
-        
         # 连接状态
         self.connectionStatusLabel = CaptionLabel("未连接")
         setCustomStyleSheet(
@@ -215,14 +232,14 @@ class RemotePage(QWidget):
         self.progressLabel = CaptionLabel(" ")
         self.progressLabel.setWordWrap(True)
 
-        wrapper = QVBoxLayout()
-        wrapper.setContentsMargins(10, 0, 10, 0)  # 左偏移
+        self.wrapper = QVBoxLayout()
+        self.wrapper.setContentsMargins(10, 0, 10, 0)  # 左偏移
 
-        wrapper.addWidget(self.connectionStatusLabel)
-        wrapper.addWidget(self.progressBar)
-        wrapper.addWidget(self.progressLabel)
+        self.wrapper.addWidget(self.connectionStatusLabel)
+        self.wrapper.addWidget(self.progressBar)
+        self.wrapper.addWidget(self.progressLabel)
 
-        self.mainLayout.addLayout(wrapper)
+        self.mainLayout.addLayout(self.wrapper)
         # self.mainLayout.addWidget(self.progressLabel)
 
     def _build_left_panel(self):
@@ -256,17 +273,16 @@ class RemotePage(QWidget):
         self.btnRestartDrm.setEnabled(False)
         layout.addWidget(self.btnRestartDrm)
 
-        self.btnUploadDisplayImg = PushButton("上传扩列图")
-        self.btnUploadDisplayImg.setIcon(FluentIcon.SEND)
-        self.btnUploadDisplayImg.setEnabled(False)
-        layout.addWidget(self.btnUploadDisplayImg)
+        self.btnRemoteFileBrowser = PushButton("远程文件管理器")
+        self.btnRemoteFileBrowser.setIcon(FluentIcon.FOLDER)
+        self.btnRemoteFileBrowser.setEnabled(True)
+        layout.addWidget(self.btnRemoteFileBrowser)
 
         # 分隔线
         line1 = QFrame()
         line1.setFrameShape(QFrame.Shape.HLine)
         line1.setFrameShadow(QFrame.Shadow.Sunken)
         layout.addWidget(line1)
-
 
     def _build_middle_panel(self):
         """中栏: 素材详细列表"""
@@ -322,6 +338,17 @@ class RemotePage(QWidget):
         self.btnRestartDrm.clicked.connect(self._on_restart_drm)
         self.btnUploadLocal.clicked.connect(self._on_upload_local)
         self.btnClearLog.clicked.connect(self.logTextEdit.clear)
+        self.btnRemoteFileBrowser.clicked.connect(self._on_upload_remote_file)
+
+    def _on_upload_remote_file(self):
+        host, port, user, password, remote_path = self._get_ssh_params()
+        from gui.widgets.RemoteFileManager import RemoteFileManagerWindow
+
+        self.fileManager = RemoteFileManagerWindow(
+            self, self.parent, host, port, user, password, remote_path
+        )
+        self.fileManager.show()
+        return
 
     # ─── 日志 ────────────────────────────────────────────
 
@@ -330,6 +357,18 @@ class RemotePage(QWidget):
         timestamp = datetime.now().strftime("%H:%M:%S")
         line = f"[{timestamp}] [{level}] {msg}"
         self.logTextEdit.appendPlainText(line)
+
+        # 限制最大行数
+        doc = self.logTextEdit.document()
+        if doc.blockCount() > 1000:
+            cursor = self.logTextEdit.textCursor()
+            cursor.movePosition(cursor.MoveOperation.Start)
+            cursor.movePosition(
+                cursor.MoveOperation.Down,
+                cursor.MoveMode.KeepAnchor,
+                doc.blockCount() - 1000,
+            )
+            cursor.removeSelectedText()
 
         # 滚动到底部
         scrollbar = self.logTextEdit.verticalScrollBar()
@@ -362,14 +401,14 @@ class RemotePage(QWidget):
 
     def _get_ssh_params(self):
         """从内部缓存获取 SSH 连接参数"""
-        host = self._ssh_config.get('ssh_ip_address', '192.168.137.2')
+        host = self._ssh_config.get("ssh_ip_address", "192.168.137.2")
         try:
-            port = int(self._ssh_config.get('ssh_port', '22'))
+            port = int(self._ssh_config.get("ssh_port", "22"))
         except ValueError:
             port = 22
-        user = self._ssh_config.get('ssh_user', 'root')
-        password = self._ssh_config.get('ssh_password', 'toor')
-        remote_path = self._ssh_config.get('ssh_default_upload_path', '/assets/')
+        user = self._ssh_config.get("ssh_user", "root")
+        password = self._ssh_config.get("ssh_password", "toor")
+        remote_path = self._ssh_config.get("ssh_default_upload_path", "/assets/")
         return host, port, user, password, remote_path
 
     # ─── 连接 ────────────────────────────────────────────
@@ -389,6 +428,7 @@ class RemotePage(QWidget):
         self._set_busy(True)
 
         from core.ssh_upload_service import SshConnectTestWorker
+
         self._connect_worker = SshConnectTestWorker(parent=self)
         self._connect_worker.setup(host, port, user, password)
         self._connect_worker.log_message.connect(self._worker_log)
@@ -405,8 +445,9 @@ class RemotePage(QWidget):
         self._is_connected = False
         self._update_connection_ui()
         self._set_busy(False)
-        InfoBar.error("连接失败", error, parent=self,
-                      position=InfoBarPosition.TOP, duration=5000)
+        InfoBar.error(
+            "连接失败", error, parent=self, position=InfoBarPosition.TOP, duration=5000
+        )
 
     def _update_connection_ui(self):
         if self._is_connected:
@@ -444,6 +485,7 @@ class RemotePage(QWidget):
         self._set_busy(True)
 
         from core.ssh_upload_service import SshRemoteListWorker
+
         self._list_worker = SshRemoteListWorker(parent=self)
         self._list_worker.setup(host, port, user, password, remote_path)
         self._list_worker.log_message.connect(self._worker_log)
@@ -467,16 +509,31 @@ class RemotePage(QWidget):
 
         self._set_busy(False)
         if items:
-            InfoBar.success("列表已刷新", f"找到 {len(items)} 个素材包",
-                            parent=self, position=InfoBarPosition.TOP, duration=3000)
+            InfoBar.success(
+                "列表已刷新",
+                f"找到 {len(items)} 个素材包",
+                parent=self,
+                position=InfoBarPosition.TOP,
+                duration=3000,
+            )
         else:
-            InfoBar.info("列表已刷新", "未找到远程素材",
-                         parent=self, position=InfoBarPosition.TOP, duration=3000)
+            InfoBar.info(
+                "列表已刷新",
+                "未找到远程素材",
+                parent=self,
+                position=InfoBarPosition.TOP,
+                duration=3000,
+            )
 
     def _on_list_failed(self, error: str):
         self._set_busy(False)
-        InfoBar.error("获取列表失败", error, parent=self,
-                      position=InfoBarPosition.TOP, duration=5000)
+        InfoBar.error(
+            "获取列表失败",
+            error,
+            parent=self,
+            position=InfoBarPosition.TOP,
+            duration=5000,
+        )
 
     # ─── 预览 ────────────────────────────────────────────
 
@@ -486,23 +543,24 @@ class RemotePage(QWidget):
         if self._is_busy or not self._is_connected:
             return
 
-        path = QFileDialog.getExistingDirectory(
-            self, "选择要上传的素材目录", "")
+        path = QFileDialog.getExistingDirectory(self, "选择要上传的素材目录", "")
         if not path:
             return
 
         self._local_file_path = path
         host, port, user, password, remote_path = self._get_ssh_params()
-        enable_restart = self._ssh_config.get('ssh_auto_restart_program', False)
+        enable_restart = self._ssh_config.get("ssh_auto_restart_program", False)
 
         self._set_busy(True)
         self.progressBar.setVisible(True)
         self.progressBar.setValue(0)
 
         from core.ssh_upload_service import SshUploadWorker
+
         self._upload_worker = SshUploadWorker(parent=self)
-        self._upload_worker.setup(host, port, user, password, path,
-                                  remote_path, enable_restart)
+        self._upload_worker.setup(
+            host, port, user, password, path, remote_path, enable_restart
+        )
         self._upload_worker.progress_updated.connect(self._on_upload_progress)
         self._upload_worker.log_message.connect(self._worker_log)
         self._upload_worker.upload_completed.connect(self._on_upload_done)
@@ -519,10 +577,16 @@ class RemotePage(QWidget):
         self.progressLabel.setText(message)
         self._set_busy(False)
         self._log("INFO", message)
-        InfoBar.success("上传成功", message, parent=self,
-                        position=InfoBarPosition.TOP, duration=5000)
+        InfoBar.success(
+            "上传成功",
+            message,
+            parent=self,
+            position=InfoBarPosition.TOP,
+            duration=5000,
+        )
         reply = QMessageBox.question(
-            self, "上传成功",
+            self,
+            "上传成功",
             f"已上传\n是否重启DrmApp以应用更改？",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
@@ -533,22 +597,32 @@ class RemotePage(QWidget):
         # 重启
         if reply != QMessageBox.StandardButton.Yes:
             return
-        self._start_restart_worker()
+        import threading
+
+        t = threading.Thread(target=self.restart_drm_worker, daemon=True)
+        t.start()
 
     def _on_upload_failed(self, error: str):
         self.progressBar.setVisible(False)
         self.progressLabel.setText("")
         self._set_busy(False)
         self._log("ERROR", f"上传失败: {error}")
-        InfoBar.error("上传失败", error, parent=self,
-                      position=InfoBarPosition.TOP, duration=5000)
+        InfoBar.error(
+            "上传失败", error, parent=self, position=InfoBarPosition.TOP, duration=5000
+        )
 
     def _on_delete_done(self, name: str):
         self._set_busy(False)
-        InfoBar.success("删除成功", f"已删除: {name}", parent=self,
-                        position=InfoBarPosition.TOP, duration=3000)
+        InfoBar.success(
+            "删除成功",
+            f"已删除: {name}",
+            parent=self,
+            position=InfoBarPosition.TOP,
+            duration=3000,
+        )
         reply = QMessageBox.question(
-            self, "删除成功",
+            self,
+            "删除成功",
             f"已删除: {name}\n是否重启DrmApp以应用更改？",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
@@ -559,45 +633,68 @@ class RemotePage(QWidget):
         # 重启
         if reply != QMessageBox.StandardButton.Yes:
             return
-        self._start_restart_worker()
+        import threading
+
+        t = threading.Thread(target=self.restart_drm_worker, daemon=True)
+        t.start()
 
     def _on_restart_drm(self):
-        self._start_restart_worker()
+        import threading
 
-    def _start_restart_worker(self):
-        """启动重启 Worker（线程安全）"""
-        from core.ssh_upload_service import SshRestartWorker
-        host, port, user, password, _ = self._get_ssh_params()
-        self._restart_worker = SshRestartWorker(parent=self)
-        self._restart_worker.setup(host, port, user, password)
-        self._restart_worker.log_message.connect(self._worker_log)
-        self._restart_worker.restart_succeeded.connect(self._on_restart_done)
-        self._restart_worker.restart_failed.connect(self._on_restart_failed)
-        self._restart_worker.start()
+        t = threading.Thread(target=self.restart_drm_worker, daemon=True)
+        t.start()
+        return
 
-    def _on_restart_done(self):
-        InfoBar.success("重启成功", "DrmApp 已重启", parent=self,
-                        position=InfoBarPosition.TOP, duration=3000)
+    def restart_drm_worker(self):
+        try:
+            import paramiko
 
-    def _on_restart_failed(self, error: str):
-        InfoBar.error("重启失败", error, parent=self,
-                      position=InfoBarPosition.TOP, duration=5000)
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            host, port, user, password, remote_path = self._get_ssh_params()
+            ssh.connect(
+                host,
+                port=port,
+                username=user,
+                password=password,
+                timeout=10,
+                banner_timeout=10,
+                auth_timeout=10,
+            )
+            from core.sshOperation import StopDrmApp, StartDrmApp
+
+            self._log("INFO", f"开始重启DrmApp...")
+            StopDrmApp(ssh)
+            self._log("INFO", f"DrmApp 已停止，正在启动...")
+            StartDrmApp(ssh)
+            self._log("INFO", f"已发送重启指令")
+        except Exception as e:
+            InfoBar.error(
+                "重启失败",
+                f"重启失败：\n{e}",
+                parent=self,
+                position=InfoBarPosition.TOP,
+                duration=5000,
+            )
+        return
 
     def _on_delete_failed(self, error: str):
         self._set_busy(False)
-        InfoBar.error("删除失败", error, parent=self,
-                      position=InfoBarPosition.TOP, duration=5000)
+        InfoBar.error(
+            "删除失败", error, parent=self, position=InfoBarPosition.TOP, duration=5000
+        )
 
     def _on_delete_for_asset(self, asset_data: dict):
         if self._is_busy:
             return
 
-        name = asset_data.get('name', 'Unknown')
-        uuid = asset_data.get('uuid', 'Unknown')
-        path = asset_data.get('path', 'Unknown')
+        name = asset_data.get("name", "Unknown")
+        uuid = asset_data.get("uuid", "Unknown")
+        path = asset_data.get("path", "Unknown")
         reply = QMessageBox.question(
-            self, "确认删除",
-            f"确定要删除远程素材 \"{name}\" 吗？\nUUID = {uuid}\n{path}\n此操作不可撤销。",
+            self,
+            "确认删除",
+            f'确定要删除远程素材 "{name}" 吗？\nUUID = {uuid}\n{path}\n此操作不可撤销。',
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
@@ -607,14 +704,46 @@ class RemotePage(QWidget):
         self._set_busy(True)
 
         from core.ssh_upload_service import SshDeleteWorker
+
         self._delete_worker = SshDeleteWorker(parent=self)
-        self._delete_worker.setup(host, port, user, password, remote_path, name, uuid, path)
+        self._delete_worker.setup(
+            host, port, user, password, remote_path, name, uuid, path
+        )
         self._delete_worker.log_message.connect(self._worker_log)
         self._delete_worker.delete_completed.connect(self._on_delete_done)
         self._delete_worker.delete_failed.connect(self._on_delete_failed)
         self._delete_worker.start()
 
     # ─── 下载 ────────────────────────────────────────────
+
+    def _on_download(self):
+        if self._is_busy:
+            return
+
+        name = self._get_selected_asset_name()
+        if not name:
+            return
+
+        save_dir = QFileDialog.getExistingDirectory(self, "选择保存位置")
+        if not save_dir:
+            return
+
+        host, port, user, password, remote_path = self._get_ssh_params()
+        self._set_busy(True)
+        self.progressBar.setVisible(True)
+        self.progressBar.setValue(0)
+
+        from core.ssh_upload_service import SshDownloadWorker
+
+        self._download_worker = SshDownloadWorker(parent=self)
+        self._download_worker.setup(
+            host, port, user, password, remote_path, name, save_dir
+        )
+        self._download_worker.log_message.connect(self._worker_log)
+        self._download_worker.progress_updated.connect(self._on_download_progress)
+        self._download_worker.download_completed.connect(self._on_download_done)
+        self._download_worker.download_failed.connect(self._on_download_failed)
+        self._download_worker.start()
 
     def _on_download_progress(self, percent: int, message: str):
         self.progressBar.setValue(percent)
@@ -625,25 +754,30 @@ class RemotePage(QWidget):
         self.progressLabel.setText("")
         self._set_busy(False)
         self._log("INFO", f"下载完成: {local_path}")
-        InfoBar.success("下载成功", f"已保存到: {local_path}", parent=self,
-                        position=InfoBarPosition.TOP, duration=5000)
+        InfoBar.success(
+            "下载成功",
+            f"已保存到: {local_path}",
+            parent=self,
+            position=InfoBarPosition.TOP,
+            duration=5000,
+        )
 
     def _on_download_failed(self, error: str):
         self.progressBar.setVisible(False)
         self.progressLabel.setText("")
         self._set_busy(False)
         self._log("ERROR", f"下载失败: {error}")
-        InfoBar.error("下载失败", error, parent=self,
-                      position=InfoBarPosition.TOP, duration=5000)
+        InfoBar.error(
+            "下载失败", error, parent=self, position=InfoBarPosition.TOP, duration=5000
+        )
 
     def _on_download_for_asset(self, asset_data: dict):
         if self._is_busy:
             return
 
-        name = asset_data.get('name', 'Unknown')
-        remotePath = asset_data.get('path', 'Unknown')
-        save_dir = QFileDialog.getExistingDirectory(
-            self, "选择保存位置")
+        name = asset_data.get("name", "Unknown")
+        remotePath = asset_data.get("path", "Unknown")
+        save_dir = QFileDialog.getExistingDirectory(self, "选择保存位置")
         if not save_dir:
             return
 
@@ -653,9 +787,11 @@ class RemotePage(QWidget):
         self.progressBar.setValue(0)
 
         from core.ssh_upload_service import SshDownloadWorker
+
         self._download_worker = SshDownloadWorker(parent=self)
-        self._download_worker.setup(host, port, user, password,
-                                    remote_path, name, save_dir, remotePath)
+        self._download_worker.setup(
+            host, port, user, password, remote_path, name, save_dir, remotePath
+        )
         self._download_worker.log_message.connect(self._worker_log)
         self._download_worker.progress_updated.connect(self._on_download_progress)
         self._download_worker.download_completed.connect(self._on_download_done)
@@ -664,66 +800,14 @@ class RemotePage(QWidget):
 
     # ─── 编辑（下载后用主窗口打开）─────────────────────────
 
-    def _on_edit_download_done(self, local_path: str):
-        self.progressBar.setVisible(False)
-        self.progressLabel.setText("")
-        self._set_busy(False)
-        self._log("INFO", f"编辑素材已下载到: {local_path}")
-
-        # 在下载目录中查找 epconfig.json
-        config_path = self._find_epconfig(local_path)
-
-        if not config_path:
-            self._log("WARNING", "素材包中未找到 epconfig.json")
-            InfoBar.warning(
-                "提示", "素材包中未找到配置文件 (epconfig.json)",
-                parent=self, position=InfoBarPosition.TOP, duration=5000,
-            )
-            return
-
-        main_window = self.window()
-        try:
-            main_window.ReadProjectFromJson(config_path)
-            main_window._on_sidebar_material()
-            self._log("INFO", f"已打开编辑: {config_path}")
-        except Exception as e:
-            self._log("ERROR", f"打开编辑失败: {e}")
-            InfoBar.error(
-                "打开失败", f"无法加载素材配置: {e}",
-                parent=self, position=InfoBarPosition.TOP, duration=5000,
-            )
-
-    def _find_epconfig(self, base_path: str) -> str:
-        """在下载目录中查找 epconfig.json
-
-        支持两种 SCP 递归下载后的目录结构:
-          1) base_path/epconfig.json               (扁平下载)
-          2) base_path/<remote_folder>/epconfig.json (递归下载，典型结构)
-
-        返回找到的路径，未找到返回空字符串。
-        """
-        direct = os.path.join(base_path, "epconfig.json")
-        if os.path.isfile(direct):
-            return direct
-
-        try:
-            for name in os.listdir(base_path):
-                sub = os.path.join(base_path, name)
-                if os.path.isdir(sub):
-                    candidate = os.path.join(sub, "epconfig.json")
-                    if os.path.isfile(candidate):
-                        return candidate
-        except (FileNotFoundError, PermissionError):
-            pass
-
-        return ""
-
-    def _on_edit_for_asset(self, asset_data: dict):
+    def _on_edit(self):
         if self._is_busy:
             return
 
-        name = asset_data.get('name', 'Unknown')
-        remoteAbsPath = asset_data.get('path', '')
+        name = self._get_selected_asset_name()
+        if not name:
+            return
+
         # 下载到临时目录，完成后通知主窗口打开
         temp_dir = tempfile.mkdtemp(prefix="neo_asset_edit_")
         host, port, user, password, remote_path = self._get_ssh_params()
@@ -732,9 +816,92 @@ class RemotePage(QWidget):
         self.progressBar.setValue(0)
 
         from core.ssh_upload_service import SshDownloadWorker
+
         self._download_worker = SshDownloadWorker(parent=self)
-        self._download_worker.setup(host, port, user, password,
-                                    remote_path, name, temp_dir, remoteAbsPath)
+        self._download_worker.setup(
+            host, port, user, password, remote_path, name, temp_dir
+        )
+        self._download_worker.log_message.connect(self._worker_log)
+        self._download_worker.progress_updated.connect(self._on_download_progress)
+        self._download_worker.download_completed.connect(self._on_edit_download_done)
+        self._download_worker.download_failed.connect(self._on_download_failed)
+        self._download_worker.start()
+
+    def _on_edit_download_done(self, local_path: str):
+        self.progressBar.setVisible(False)
+        self.progressLabel.setText("")
+        self._set_busy(False)
+        self._log("INFO", f"编辑素材已下载到: {local_path}")
+
+        # 尝试通知主窗口打开
+        self.parent = self.window()
+        if hasattr(self.parent, "_open_project"):
+            # 查找 JSON 配置文件
+            json_files = [f for f in os.listdir(local_path) if f.endswith(".json")]
+            if json_files:
+                json_path = os.path.join(local_path, json_files[0])
+                self.parent._open_project(json_path)
+                self._log("INFO", f"已在主窗口中打开: {json_files[0]}")
+            else:
+                self._log("WARNING", "素材包中未找到 JSON 配置文件")
+                InfoBar.warning(
+                    "提示",
+                    "素材包中未找到 JSON 配置文件",
+                    parent=self,
+                    position=InfoBarPosition.TOP,
+                    duration=5000,
+                )
+        else:
+            InfoBar.info(
+                "提示",
+                f"素材已下载到: {local_path}",
+                parent=self,
+                position=InfoBarPosition.TOP,
+                duration=5000,
+            )
+
+            # 查找 JSON 配置目录
+            json_dirs = self.ListChildrenDirs(local_path)
+            if not json_dirs:
+                self._log("WARNING", "素材包中未找到 JSON 配置目录")
+                return
+
+            json_config_path = os.path.join(json_dirs[0], "epconfig.json")
+
+            # 发送配置路径给主窗口（在主窗口支持相关接口的情况下）
+            if (
+                self.parent is not None
+                and hasattr(self.parent, "ReadProjectFromJson")
+                and hasattr(self.parent, "_on_sidebar_material")
+            ):
+                try:
+                    self.parent.ReadProjectFromJson(json_config_path)
+                    self.parent._on_sidebar_material()
+                except Exception as exc:
+                    logger.exception("打开素材配置失败: %s", exc)
+                    self._log("ERROR", f"打开素材配置失败: {exc}")
+            else:
+                self._log("WARNING", "主窗口不支持从 JSON 打开素材配置")
+
+    def _on_edit_for_asset(self, asset_data: dict):
+        if self._is_busy:
+            return
+
+        name = asset_data.get("name", "Unknown")
+        remoteAbsPath = asset_data.get("path", "")
+        # 下载到临时目录，完成后通知主窗口打开
+        temp_dir = tempfile.mkdtemp(prefix="neo_asset_edit_")
+        host, port, user, password, remote_path = self._get_ssh_params()
+        self._set_busy(True)
+        self.progressBar.setVisible(True)
+        self.progressBar.setValue(0)
+
+        from core.ssh_upload_service import SshDownloadWorker
+
+        self._download_worker = SshDownloadWorker(parent=self)
+        self._download_worker.setup(
+            host, port, user, password, remote_path, name, temp_dir, remoteAbsPath
+        )
         self._download_worker.log_message.connect(self._worker_log)
         self._download_worker.progress_updated.connect(self._on_download_progress)
         self._download_worker.download_completed.connect(self._on_edit_download_done)
@@ -750,12 +917,29 @@ class RemotePage(QWidget):
     def shutdown(self):
         """关闭页面，取消所有进行中的操作"""
         workers = [
-            self._upload_worker, self._list_worker,
-            self._delete_worker, self._download_worker,
-            self._connect_worker, self._restart_worker,
+            self._upload_worker,
+            self._list_worker,
+            self._delete_worker,
+            self._download_worker,
+            self._connect_worker,
         ]
         for w in workers:
             if w and w.isRunning():
-                if hasattr(w, 'cancel'):
+                if hasattr(w, "cancel"):
                     w.cancel()
                 w.wait(3000)
+
+    def ListChildrenDirs(self, path: str) -> List[str]:
+        """
+        返回指定路径下的所有子目录（不递归）
+        """
+        try:
+            return [
+                os.path.join(path, name)
+                for name in os.listdir(path)
+                if os.path.isdir(os.path.join(path, name))
+            ]
+        except FileNotFoundError:
+            return []
+        except PermissionError:
+            return []

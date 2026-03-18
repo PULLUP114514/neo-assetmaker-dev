@@ -141,7 +141,9 @@ class SettingsPage(QWidget):
         lang_layout.setSpacing(12)
         lang_layout.addWidget(BodyLabel("语言：", content))
         self._lang_combo = ComboBox(content)
-        self._lang_combo.addItems(["English", "Chinese (Simplified)", "Japanese", "Korean"])
+        self._lang_combo.addItems(
+            ["English", "Chinese (Simplified)", "Japanese", "Korean"]
+        )
         self._lang_combo.setFixedWidth(COMBO_WIDTH_LG)
         lang_layout.addWidget(self._lang_combo)
         lang_layout.addStretch()
@@ -169,7 +171,9 @@ class SettingsPage(QWidget):
         concurrent_layout.addWidget(BodyLabel("最大并发下载数：", content))
         self._concurrent_combo = ComboBox(content)
         self._concurrent_combo.addItems(["1", "2", "3", "4", "5"])
-        self._concurrent_combo.setCurrentText(str(self._services.config.max_concurrent_downloads))
+        self._concurrent_combo.setCurrentText(
+            str(self._services.config.max_concurrent_downloads)
+        )
         self._concurrent_combo.setFixedWidth(COMBO_WIDTH_SM)
         concurrent_layout.addWidget(self._concurrent_combo)
         concurrent_layout.addStretch()
@@ -391,7 +395,9 @@ class SettingsPage(QWidget):
         )
 
         worker.touch_required.connect(touch_dialog.show)
-        worker.pin_required.connect(lambda retries: self._show_pin_dialog(worker, retries))
+        worker.pin_required.connect(
+            lambda retries: self._show_pin_dialog(worker, retries)
+        )
         worker.completed.connect(
             lambda result: self._on_register_complete(result, touch_dialog, state_token)
         )
@@ -423,7 +429,9 @@ class SettingsPage(QWidget):
             },
             parent=self,
         )
-        self._register_complete_worker.completed.connect(self._on_register_complete_done)
+        self._register_complete_worker.completed.connect(
+            self._on_register_complete_done
+        )
         self._register_complete_worker.error.connect(
             lambda msg: InfoBar.error(
                 title="注册失败",
