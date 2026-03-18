@@ -359,20 +359,17 @@ class RemotePage(QWidget):
             elif system == "Linux":
                 # 优先 konsole -> gnome -> x-terminal-emulator
                 try:
-                    subprocess.Popen(["konsole", "-e", ssh_cmd])
+                    subprocess.Popen(
+                        [
+                            "gnome-terminal",
+                            "--",
+                            "bash",
+                            "-c",
+                            f"{ssh_cmd}; exec bash",
+                        ]
+                    )
                 except FileNotFoundError:
-                    try:
-                        subprocess.Popen(
-                            [
-                                "gnome-terminal",
-                                "--",
-                                "bash",
-                                "-c",
-                                f"{ssh_cmd}; exec bash",
-                            ]
-                        )
-                    except FileNotFoundError:
-                        subprocess.Popen(["x-terminal-emulator", "-e", ssh_cmd])
+                    subprocess.Popen(["x-terminal-emulator", "-e", ssh_cmd])
             elif system == "Darwin":
                 # macOS Terminal
                 subprocess.Popen(["open", "-a", "Terminal", ssh_cmd])
