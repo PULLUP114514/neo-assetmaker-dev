@@ -118,8 +118,10 @@ class RemoteFileManagerWindow(QWidget):
         progress_signal = pyqtSignal(int, str)  # 进度
 
         self.setWindowTitle("远程文件管理")
-        self.resize(1350, 1000)
+        self.resize(1000, 900)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)  # 阻塞主窗口
+
+        buttonWidth = 125
 
         # 主布局
         self.mainLayout = QVBoxLayout(self)
@@ -141,6 +143,22 @@ class RemoteFileManagerWindow(QWidget):
 
         # 挤占右边空间
         self.topPathLayout.addStretch()
+
+        self.btn_refresh = PushButton("刷新")
+        self.btn_refresh.setIcon(FluentIcon.UPDATE)
+        self.btn_refresh.setMinimumWidth(buttonWidth)
+        self.btn_refresh.setContentsMargins(10, 10, 10, 10)
+        self.btn_refresh.clicked.connect(self._on_refresh)
+        self.topPathLayout.addWidget(self.btn_refresh, 0, Qt.AlignmentFlag.AlignRight)
+
+        self.btn_goParentFolder = PushButton("上一级")
+        self.btn_goParentFolder.setIcon(FluentIcon.UP)
+        self.btn_goParentFolder.setMinimumWidth(buttonWidth)
+        self.btn_goParentFolder.setContentsMargins(10, 10, 10, 10)
+        self.btn_goParentFolder.clicked.connect(self._on_goParentFolder)
+        self.topPathLayout.addWidget(
+            self.btn_goParentFolder, 0, Qt.AlignmentFlag.AlignRight
+        )
 
         # 文件浏览器滚动区域
         self.fileWarpper = QScrollArea()
@@ -176,23 +194,6 @@ class RemoteFileManagerWindow(QWidget):
 
         self.lb_DragTip = QLabel("可以将文件直接拖拽到上方列表来上传到当前文件夹")
         self.buttomLayout.addWidget(self.lb_DragTip, 1, Qt.AlignmentFlag.AlignLeft)
-
-        buttonWidth = 125
-        self.btn_refresh = PushButton("刷新")
-        self.btn_refresh.setIcon(FluentIcon.UPDATE)
-        self.btn_refresh.setMinimumWidth(buttonWidth)
-        self.btn_refresh.setContentsMargins(10, 10, 10, 10)
-        self.btn_refresh.clicked.connect(self._on_refresh)
-        self.buttomLayout.addWidget(self.btn_refresh, 0, Qt.AlignmentFlag.AlignRight)
-
-        self.btn_goParentFolder = PushButton("上一级")
-        self.btn_goParentFolder.setIcon(FluentIcon.UP)
-        self.btn_goParentFolder.setMinimumWidth(buttonWidth)
-        self.btn_goParentFolder.setContentsMargins(10, 10, 10, 10)
-        self.btn_goParentFolder.clicked.connect(self._on_goParentFolder)
-        self.buttomLayout.addWidget(
-            self.btn_goParentFolder, 0, Qt.AlignmentFlag.AlignRight
-        )
 
         self.btn_NewFolder = PushButton("新建文件夹")
         self.btn_NewFolder.setIcon(FluentIcon.FOLDER)
@@ -357,8 +358,9 @@ class RemoteFileManagerWindow(QWidget):
             themeType = "light"
 
         # 使用字典重排序
-        self.fileList = sorted(fileList, key=lambda x: x.name)
-
+        self.fileList = sorted(
+            fileList, key=lambda x: (0 if x.type == "folder" else 1, x.name.lower())
+        )
         for file in self.fileList:
             filename = file.name
 

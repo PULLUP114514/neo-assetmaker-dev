@@ -6,7 +6,7 @@ import os
 import logging
 import tempfile
 from datetime import datetime
-
+import subprocess
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap, QFont
 from PyQt6.QtWidgets import (
@@ -278,6 +278,11 @@ class RemotePage(QWidget):
         self.btnRemoteFileBrowser.setEnabled(True)
         layout.addWidget(self.btnRemoteFileBrowser)
 
+        self.btnSSHShell = PushButton("打开SSH终端")
+        self.btnSSHShell.setIcon(FluentIcon.CODE)
+        self.btnSSHShell.setEnabled(True)
+        layout.addWidget(self.btnSSHShell)
+
         # 分隔线
         line1 = QFrame()
         line1.setFrameShape(QFrame.Shape.HLine)
@@ -339,6 +344,44 @@ class RemotePage(QWidget):
         self.btnUploadLocal.clicked.connect(self._on_upload_local)
         self.btnClearLog.clicked.connect(self.logTextEdit.clear)
         self.btnRemoteFileBrowser.clicked.connect(self._on_upload_remote_file)
+        self.btnSSHShell.clicked.connect(self._on_ssh_shell_clicked)
+
+    def _on_ssh_shell_clicked(self):
+        import platform
+
+        host, port, user, password, remote_path = self._get_ssh_params()
+        system = platform.system()
+        ssh_cmd = f"ssh {user}@{host} -p {port}"
+        try:
+            if system == "Windows":
+                # 使用 cmd 打开新窗口
+                subprocess.Popen(f"start cmd /k {ssh_cmd}", shell=True)
+            elif system == "Linux":
+                # 优先 konsole -> gnome -> x-terminal-emulator
+                try:
+                    subprocess.Popen(["konsole", "-e", ssh_cmd])
+                except FileNotFoundError:
+                    try:
+                        subprocess.Popen(
+                            [
+                                "gnome-terminal",
+                                "--",
+                                "bash",
+                                "-c",
+                                f"{ssh_cmd}; exec bash",
+                            ]
+                        )
+                    except FileNotFoundError:
+                        subprocess.Popen(["x-terminal-emulator", "-e", ssh_cmd])
+            elif system == "Darwin":
+                # macOS Terminal
+                subprocess.Popen(["open", "-a", "Terminal", ssh_cmd])
+            else:
+                raise Exception(f"不支持的系统: {system}")
+        except Exception as e:
+            logger.error(f"启动shell失败{e}", stack_info=True)
+            self.show_error(f"启动shell失败{e}")
+        return
 
     def _on_upload_remote_file(self):
         host, port, user, password, remote_path = self._get_ssh_params()
