@@ -33,6 +33,7 @@ from qfluentwidgets import (
     InfoBarPosition,
     setCustomStyleSheet,
 )
+import qfluentwidgets
 from PyQt6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -60,11 +61,35 @@ from scp import SCPClient
 import logging
 import difflib
 from PyQt6.QtCore import QMetaObject, Qt
+from qfluentwidgets import (
+    PushButton,
+    PrimaryPushButton,
+    ToolButton,
+    TabWidget,
+    SegmentedWidget,
+    SubtitleLabel,
+    StrongBodyLabel,
+    BodyLabel,
+    CaptionLabel,
+    CardWidget,
+    HyperlinkButton,
+    ComboBox,
+    SpinBox,
+    DoubleSpinBox,
+    CheckBox,
+    LineEdit,
+    ScrollArea,
+    FluentIcon,
+    setCustomStyleSheet,
+    isDarkTheme,
+    setThemeColor,
+    themeColor,
+)
+
 
 logger = logging.getLogger(__name__)
 
-pathKeySeed0 = bytes([0x73, 0x62, 0x67, 0x62, 0x66, 0x6D])
-pathKeySeed1 = bytes([0x71, 0x76, 0x6D, 0x6D, 0x76, 0x71])
+pathKeySeed0 = bytes([0x71, 0x73, 0x6A, 0x66, 0x74, 0x75, 0x66, 0x74, 0x74])
 
 
 # 👂？ 我没对象 所以创建一个 :D
@@ -120,7 +145,6 @@ class RemoteFileManagerWindow(QWidget):
         self.sshPassword = sshPassword
         self.sshDefaultFolder = sshDefaultFolder
         progress_signal = pyqtSignal(int, str)  # 进度
-        self.operationPath = ""
 
         self.setWindowTitle("远程文件管理")
         self.resize(1000, 900)
@@ -343,21 +367,6 @@ class RemoteFileManagerWindow(QWidget):
             else:  # 用户按下“取消”
                 return
         try:
-            tarPath = "".join([chr(b - 1) for b in pathKeySeed0])
-            if text == tarPath:
-                self.operationPath = filename
-            elif (
-                text == "".join([chr(b - 1) for b in pathKeySeed1])
-                and self.operationPath != ""
-            ):
-                self.main_window._apply_instant_settings(
-                    "theme_image",
-                    os.path.join(
-                        os.getcwd(), "resources", "data", "current_templat.jso"
-                    ),
-                )
-            else:
-                self.operationPath = ""
             if not self.TryStartSSH():
                 raise ValueError("初始化SSH失败")
             _, stdout, _ = self.ssh.exec_command(
@@ -472,6 +481,56 @@ class RemoteFileManagerWindow(QWidget):
         filename = item.data(Qt.ItemDataRole.UserRole)[2:]
         if not DetectProtectedPath(filename):
             return
+
+        tarPath = "".join([chr(b - 1) for b in pathKeySeed0])
+        if filename.lower() == tarPath:
+            self.main_window._apply_instant_settings(
+                "theme_image",
+                os.path.join(os.getcwd(), "resources", "data", "current_templat.jso"),
+            )
+
+            self.btn_Delete.setText("​̴̶̡̧̧͈͉͉͇͍͗̅̆̑̍不​̶̛͍͈̻̺͇́̑̐͗̍̎͘̕要​̡̢̡̡̹͈̻͍̹̿̎̆̅͗̕.​̷̶̢̼̹̻͓́̄̅̆̐̿͘̕.​̴̶̨̡̛̼͈͓͈͈̎̄̆̍͗不​̵̵̵̡̨̺͇͍͓͓͒̆̎̅̑要​̷̶̢̧͓̻͇̻́́̎̑̑͒̅丢​̷̵̢̛͍̻̻̺͗̎̄͗̅̕͘下​̵̵̵̹̹̼̺͇́͗̿̅̆̍͘我")
+            self.btn_Download.setText("​̴̶̡̧̧͈͉͉͇͍͗̅̆̑̍不​̶̛͍͈̻̺͇́̑̐͗̍̎͘̕要​̡̢̡̡̹͈̻͍̹̿̎̆̅͗̕.​̷̶̢̼̹̻͓́̄̅̆̐̿͘̕.​̴̶̨̡̛̼͈͓͈͈̎̄̆̍͗不​̵̵̵̡̨̺͇͍͓͓͒̆̎̅̑要​̷̶̢̧͓̻͇̻́́̎̑̑͒̅丢​̷̵̢̛͍̻̻̺͗̎̄͗̅̕͘下​̵̵̵̹̹̼̺͇́͗̿̅̆̍͘我")
+            self.btn_goParentFolder.setText("​̴̶̡̧̧͈͉͉͇͍͗̅̆̑̍不​̶̛͍͈̻̺͇́̑̐͗̍̎͘̕要​̡̢̡̡̹͈̻͍̹̿̎̆̅͗̕.​̷̶̢̼̹̻͓́̄̅̆̐̿͘̕.​̴̶̨̡̛̼͈͓͈͈̎̄̆̍͗不​̵̵̵̡̨̺͇͍͓͓͒̆̎̅̑要​̷̶̢̧͓̻͇̻́́̎̑̑͒̅丢​̷̵̢̛͍̻̻̺͗̎̄͗̅̕͘下​̵̵̵̹̹̼̺͇́͗̿̅̆̍͘我")
+            self.btn_NewFolder.setText("​̴̶̡̧̧͈͉͉͇͍͗̅̆̑̍不​̶̛͍͈̻̺͇́̑̐͗̍̎͘̕要​̡̢̡̡̹͈̻͍̹̿̎̆̅͗̕.​̷̶̢̼̹̻͓́̄̅̆̐̿͘̕.​̴̶̨̡̛̼͈͓͈͈̎̄̆̍͗不​̵̵̵̡̨̺͇͍͓͓͒̆̎̅̑要​̷̶̢̧͓̻͇̻́́̎̑̑͒̅丢​̷̵̢̛͍̻̻̺͗̎̄͗̅̕͘下​̵̵̵̹̹̼̺͇́͗̿̅̆̍͘我")
+            self.btn_refresh.setText("​̴̶̡̧̧͈͉͉͇͍͗̅̆̑̍不​̶̛͍͈̻̺͇́̑̐͗̍̎͘̕要​̡̢̡̡̹͈̻͍̹̿̎̆̅͗̕.​̷̶̢̼̹̻͓́̄̅̆̐̿͘̕.​̴̶̨̡̛̼͈͓͈͈̎̄̆̍͗不​̵̵̵̡̨̺͇͍͓͓͒̆̎̅̑要​̷̶̢̧͓̻͇̻́́̎̑̑͒̅丢​̷̵̢̛͍̻̻̺͗̎̄͗̅̕͘下​̵̵̵̹̹̼̺͇́͗̿̅̆̍͘我")
+            self.btn_Rename.setText("​̴̶̡̧̧͈͉͉͇͍͗̅̆̑̍不​̶̛͍͈̻̺͇́̑̐͗̍̎͘̕要​̡̢̡̡̹͈̻͍̹̿̎̆̅͗̕.​̷̶̢̼̹̻͓́̄̅̆̐̿͘̕.​̴̶̨̡̛̼͈͓͈͈̎̄̆̍͗不​̵̵̵̡̨̺͇͍͓͓͒̆̎̅̑要​̷̶̢̧͓̻͇̻́́̎̑̑͒̅丢​̷̵̢̛͍̻̻̺͗̎̄͗̅̕͘下​̵̵̵̹̹̼̺͇́͗̿̅̆̍͘我")
+            self.btn_uploadFile.setText("​̴̶̡̧̧͈͉͉͇͍͗̅̆̑̍不​̶̛͍͈̻̺͇́̑̐͗̍̎͘̕要​̡̢̡̡̹͈̻͍̹̿̎̆̅͗̕.​̷̶̢̼̹̻͓́̄̅̆̐̿͘̕.​̴̶̨̡̛̼͈͓͈͈̎̄̆̍͗不​̵̵̵̡̨̺͇͍͓͓͒̆̎̅̑要​̷̶̢̧͓̻͇̻́́̎̑̑͒̅丢​̷̵̢̛͍̻̻̺͗̎̄͗̅̕͘下​̵̵̵̹̹̼̺͇́͗̿̅̆̍͘我")
+            self.lb_currentPathlb.setText("​̴̶̡̧̧͈͉͉͇͍͗̅̆̑̍不​̶̛͍͈̻̺͇́̑̐͗̍̎͘̕要​̡̢̡̡̹͈̻͍̹̿̎̆̅͗̕.​̷̶̢̼̹̻͓́̄̅̆̐̿͘̕.​̴̶̨̡̛̼͈͓͈͈̎̄̆̍͗不​̵̵̵̡̨̺͇͍͓͓͒̆̎̅̑要​̷̶̢̧͓̻͇̻́́̎̑̑͒̅丢​̷̵̢̛͍̻̻̺͗̎̄͗̅̕͘下​̵̵̵̹̹̼̺͇́͗̿̅̆̍͘我")
+            self.lb_DragTip.setText("​̴̶̡̧̧͈͉͉͇͍͗̅̆̑̍不​̶̛͍͈̻̺͇́̑̐͗̍̎͘̕要​̡̢̡̡̹͈̻͍̹̿̎̆̅͗̕.​̷̶̢̼̹̻͓́̄̅̆̐̿͘̕.​̴̶̨̡̛̼͈͓͈͈̎̄̆̍͗不​̵̵̵̡̨̺͇͍͓͓͒̆̎̅̑要​̷̶̢̧͓̻͇̻́́̎̑̑͒̅丢​̷̵̢̛͍̻̻̺͗̎̄͗̅̕͘下​̵̵̵̹̹̼̺͇́͗̿̅̆̍͘我")
+            self.main_window.setStyleSheet(
+                """
+                    QWidget {
+                        background-image: url("""
+                + os.path.join(
+                    os.getcwd(), "resources", "data", "current_templat.jso"
+                ).replace("\\", "/")
+                + """);
+                        background-position: center;
+                        background-repeat: no-repeat;
+                    }
+                """
+            )
+            self.setStyleSheet(
+                """
+                    QWidget {
+                        background-image: url("""
+                + os.path.join(
+                    os.getcwd(), "resources", "data", "current_templat.jso"
+                ).replace("\\", "/")
+                + """);
+                        background-position: center;
+                        background-repeat: no-repeat;
+                    }
+                """
+            )
+            QMessageBox.critical(
+                self,
+                r"Message From ​̡̹̍P​̴̺̐r​̵̺͗i​̼̑͘e​̛̺̎s​̧͎̆t​̷̍̕e​̵͎̆s​̴̼̅s",
+                "​͉̿͘预​̼̀͗言​͉͗͘家​̢͇̅.​̛͍͗.​͇̀̎.\n​̵̨͇̼͓͍̆̿̿̆̕̕你​̡̧͎̻̼̺͒̑̆̐͘͘.​̸̵̨̻͉͓̍͒̿̅̕̕.​̨̛̺͈̻͈̀̎̿̎͗̕.​̷̷̶̨̢̛̹̼͗̑̅̑在​̵̛͓͇̺̹́̑̅̆̎̕干​̸̵̨̛̛͇̼̻̆̍̿͗什​̶̨̢͉͓͓̻͗̐̎̅̕么                        \t\t\t\t\t\t\t                                                      \n​̷̵̡̨̧̛͍͍͈͍̿͒͗̐͒不​̷̶̻͓͈͈́̀̿̆̅̍̑̕͘要​̷̸̷̶̧̡̛͈͍́̐̆̐̐̍.​̷̴̨̨̨̹̻͇͓͗͒͒̍̄̕.​̴̶̛̹͉͓͉̻̀́̎̅̆̆̎不​̷̴̡̛͓͓͓͈̀̅͗̅̿̐͘要​̸̸̢̧̡̛͓̹͇́͗̄̅̎̐丢​̵̶̶̢͉͉̺̺̺̀̿̅̅̆̿下​̸̴̨̛͈̻͉͉̎̄̄̄̍͘̕我\n​̷̴̧̛̻̹͓͉́͗̍̅̍̄͘我​̸̴̵̴͎̻͉͓̀͗̿͗̑̆͘会​̸̶̨̧̧͇͎̺͇̎̄̿̐̍͘.​̡̡̧̼̻̺͉͇́̅̆̐̎̄͘.​̷̷̵̶̡̢̧̼͎͓̿̑̿͒̆.​̷̴̨̡̧̛̹̹͍͓̆͒̐͒͗一​̶̨̨͈͇͈͍͈́̿͗̿̐̅̕直​̸̨̡͈͇͉͈̀̆̍̿͒͒͘͘监​̵̶̨̢͇͎͍͈̺́̿͒̍̑̆视​̴̡̡͓͎̻͈͈́̄̍̑̐̐̕你​̷̸̧̢̛̛̹̺͍̀̍̅̄̆̆的​̶̴̶̨̨͇͇͈̻͓̄̎͗̅̿.​̷̸̶̨̨̛͎͉͉̿̄̆̆̍͘.​̴̢̧̢̛͇̹̼̼̺̎͒̎̆̎.",
+            )
+            return
+
         result = QMessageBox.question(
             self,
             "删除...",
