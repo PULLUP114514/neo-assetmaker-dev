@@ -18,9 +18,6 @@ use crate::ipc::{start_ipc_server, IpcMessage, IpcReceiver, IpcSender, ControlCo
 
 use super::state::{PlayState, SimulatorState, TransitionPhase};
 
-/// Frame interval for 50fps
-const FRAME_INTERVAL: Duration = Duration::from_millis(20);
-
 /// Main simulator application
 pub struct SimulatorApp {
     /// Firmware configuration
@@ -497,25 +494,50 @@ impl SimulatorApp {
     }
 
     /// Update simulation state
-    fn update_simulation(&mut self) {
+    fn update_simulation(&mut self, elapsed_us: i64) {
         if !self.state.is_playing {
             return;
         }
 
-        self.state.frame_counter += 1;
+        let step_us = self.firmware_config.animation.step_time_us as i64;
 
-        match self.state.play_state {
-            PlayState::TransitionIn => self.process_transition_in(),
-            PlayState::Intro => self.process_intro(),
-            PlayState::TransitionLoop => self.process_transition_loop(),
-            PlayState::PreOpinfo => self.process_pre_opinfo(),
-            PlayState::Loop => self.process_loop(),
-            PlayState::Idle => {}
+        // Accumulate wall-clock time, step N logic frames
+        self.state.logic_time_remainder_us += elapsed_us;
+        let logic_ticks = (self.state.logic_time_remainder_us / step_us) as u32;
+        self.state.logic_time_remainder_us %= step_us;
+
+        for _ in 0..logic_ticks {
+            self.state.frame_counter += 1;
+
+            match self.state.play_state {
+                PlayState::TransitionIn => self.process_transition_in(),
+                PlayState::Intro => {} // video advanced below via wall-clock
+                PlayState::TransitionLoop => self.process_transition_loop(),
+                PlayState::PreOpinfo => {
+                    self.state.pre_opinfo_counter += 1;
+                    if self.state.pre_opinfo_counter >= self.state.appear_time_frames {
+                        self.state.play_state = PlayState::Loop;
+                        self.animation_controller.reset();
+                        self.animation_controller.start_entry_animation();
+                    }
+                }
+                PlayState::Loop => {
+                    self.animation_controller.update(&mut self.state.animation);
+                }
+                PlayState::Idle => {}
+            }
+
+            // Send state update every 10 logic frames
+            if self.state.frame_counter % 10 == 0 {
+                self.send_state_update();
+            }
         }
 
-        // Send state update every 10 frames
-        if self.state.frame_counter % 10 == 0 {
-            self.send_state_update();
+        // Video frame advancement uses wall-clock elapsed (not logic ticks)
+        match self.state.play_state {
+            PlayState::Intro => self.advance_intro_video(elapsed_us),
+            PlayState::PreOpinfo | PlayState::Loop => self.advance_loop_video(elapsed_us),
+            _ => {}
         }
     }
 
@@ -537,21 +559,18 @@ impl SimulatorApp {
         }
     }
 
-    fn process_intro(&mut self) {
-        // Calculate video frame duration (microseconds)
+    /// Advance intro video frames based on wall-clock elapsed time
+    fn advance_intro_video(&mut self, elapsed_us: i64) {
         let video_fps = self.video_player.intro_fps();
         let frame_duration_us = (1_000_000.0 / video_fps) as i64;
 
-        // Accumulate time (50fps render = 20ms = 20000us per tick)
-        self.state.intro_frame_accumulator += 20000;
+        self.state.intro_frame_accumulator += elapsed_us;
 
-        // Advance video frame only when accumulated time exceeds frame duration
-        if self.state.intro_frame_accumulator >= frame_duration_us {
+        while self.state.intro_frame_accumulator >= frame_duration_us {
             self.state.intro_frame_accumulator -= frame_duration_us;
-            // Advance to next intro video frame (updates internal cache)
             if !self.video_player.advance_intro_frame() {
-                // Intro video ended, start transition to loop
                 self.start_transition_loop();
+                return;
             }
         }
     }
@@ -582,46 +601,17 @@ impl SimulatorApp {
         }
     }
 
-    fn process_pre_opinfo(&mut self) {
-        self.state.pre_opinfo_counter += 1;
-
-        // Calculate video frame duration (microseconds)
+    /// Advance loop video frames based on wall-clock elapsed time
+    fn advance_loop_video(&mut self, elapsed_us: i64) {
         let video_fps = self.video_player.loop_fps();
         let frame_duration_us = (1_000_000.0 / video_fps) as i64;
 
-        // Accumulate time (50fps render = 20ms = 20000us per tick)
-        self.state.loop_frame_accumulator += 20000;
+        self.state.loop_frame_accumulator += elapsed_us;
 
-        // Advance loop video frame only when accumulated time exceeds frame duration
-        if self.state.loop_frame_accumulator >= frame_duration_us {
+        while self.state.loop_frame_accumulator >= frame_duration_us {
             self.state.loop_frame_accumulator -= frame_duration_us;
             self.video_player.advance_loop_frame();
         }
-
-        // Wait for appear_time
-        if self.state.pre_opinfo_counter >= self.state.appear_time_frames {
-            self.state.play_state = PlayState::Loop;
-            self.animation_controller.reset();
-            self.animation_controller.start_entry_animation();
-        }
-    }
-
-    fn process_loop(&mut self) {
-        // Calculate video frame duration (microseconds)
-        let video_fps = self.video_player.loop_fps();
-        let frame_duration_us = (1_000_000.0 / video_fps) as i64;
-
-        // Accumulate time (50fps render = 20ms = 20000us per tick)
-        self.state.loop_frame_accumulator += 20000;
-
-        // Advance loop video frame only when accumulated time exceeds frame duration
-        if self.state.loop_frame_accumulator >= frame_duration_us {
-            self.state.loop_frame_accumulator -= frame_duration_us;
-            self.video_player.advance_loop_frame();
-        }
-
-        // Update animation
-        self.animation_controller.update(&mut self.state.animation);
     }
 
     /// Update a color buffer from an RgbImage
@@ -2308,13 +2298,15 @@ impl eframe::App for SimulatorApp {
             self.frame_dirty = true;
         }
 
-        // Timing control for 50fps
+        // Wall-clock timing
         let now = Instant::now();
-        let elapsed = now.duration_since(self.last_frame_time);
-
-        if elapsed >= FRAME_INTERVAL && self.state.is_playing {
-            self.update_simulation();
+        let elapsed_us = now.duration_since(self.last_frame_time).as_micros() as i64;
+        if self.state.is_playing && elapsed_us > 0 {
             self.last_frame_time = now;
+            // Cap to prevent spiral-of-death after system stall (max 4 logic frames)
+            let step_us = self.firmware_config.animation.step_time_us as i64;
+            let clamped_us = elapsed_us.min(step_us * 4);
+            self.update_simulation(clamped_us);
             self.frame_dirty = true;
         }
 
@@ -2434,11 +2426,12 @@ impl eframe::App for SimulatorApp {
         // Central panel: title + adaptive image + overlay
         egui::CentralPanel::default().show(ctx, |ui| {
             // Title
+            let video_fps = self.video_player.loop_fps();
             ui.heading(RichText::new(format!(
-                "Pass Simulator ({}x{} @ {}fps)",
+                "Pass Simulator ({}x{} @ {:.1}fps)",
                 self.firmware_config.overlay_width(),
                 self.firmware_config.overlay_height(),
-                self.firmware_config.fps()
+                video_fps
             )).color(text_color));
 
             ui.separator();
@@ -2485,7 +2478,8 @@ impl eframe::App for SimulatorApp {
 
         // Request repaint if playing
         if self.state.is_playing {
-            ctx.request_repaint();
+            let step_ms = self.firmware_config.animation.step_time_us as u64 / 1000;
+            ctx.request_repaint_after(Duration::from_millis(step_ms));
         }
     }
 }

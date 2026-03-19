@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-明日方舟通行证素材制作器
+明日方舟通行证素材编辑器（？）
 Arknights Pass Material Maker
 """
 import sys
