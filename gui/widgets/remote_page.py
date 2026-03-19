@@ -27,6 +27,7 @@ from qfluentwidgets import (
     StrongBodyLabel,
     CaptionLabel,
     PrimaryPushButton,
+    HyperlinkButton,
     PushButton,
     ProgressBar,
     ListWidget,
@@ -284,6 +285,13 @@ class RemotePage(QWidget):
         self.btnSSHShell.setEnabled(True)
         layout.addWidget(self.btnSSHShell)
 
+        self.btn_help = HyperlinkButton(
+            "https://ep.iccmc.cc/guide/develop/shell_access.html#%E9%80%9A%E8%BF%87rndis-usb%E7%BD%91%E7%BB%9C-%E5%B9%B6%E9%80%9A%E8%BF%87ssh%E6%8E%A5%E5%85%A5shell",
+            "如何使用？",
+        )
+        self.btn_help.setIcon(FluentIcon.HELP)
+        layout.addWidget(self.btn_help)
+
         # 分隔线
         line1 = QFrame()
         line1.setFrameShape(QFrame.Shape.HLine)
@@ -459,7 +467,6 @@ class RemotePage(QWidget):
         self.btnRefreshList.setEnabled(not busy and self._is_connected)
         self.btnUploadLocal.setEnabled(not busy and self._is_connected)
         self.btnRestartDrm.setEnabled(not busy and self._is_connected)
-        self.btnConnect.setEnabled(not busy and self._is_connected)
         # 设置中栏列表项按钮的启用状态
         for i in range(self.assetDetailList.count()):
             item = self.assetDetailList.item(i)
@@ -491,6 +498,7 @@ class RemotePage(QWidget):
             # 断开连接
             self._is_connected = False
             self._update_connection_ui()
+            self._set_busy(False)
             self._log("INFO", "已断开连接")
             return
 
