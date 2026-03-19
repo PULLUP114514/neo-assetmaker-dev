@@ -20,13 +20,13 @@ from gui.widgets.drop_overlay import DropOverlayWidget
 from gui.styles import COLOR_TEXT_PRIMARY, COLOR_BG_ELEVATED, COLOR_BORDER
 from config.epconfig import EPConfig, CONFIG_FILENAME
 from qfluentwidgets import (
-    PushButton, PrimaryPushButton, ToolButton,
+    PushButton, PrimaryPushButton, ToolButton, TransparentToolButton,
     TabWidget, SegmentedWidget,
     SubtitleLabel, StrongBodyLabel, BodyLabel, CaptionLabel,
     CardWidget, HyperlinkButton,
     ComboBox, SpinBox,
     DoubleSpinBox, CheckBox, LineEdit,
-    ScrollArea, FluentIcon,
+    ScrollArea, FluentIcon, Theme,
     setCustomStyleSheet, isDarkTheme, setThemeColor, themeColor
 )
 from PyQt6.QtGui import QAction, QKeySequence, QIcon, QShortcut
@@ -190,24 +190,23 @@ class MainWindow(QMainWindow):
         control_layout = QHBoxLayout()
         control_layout.setSpacing(5)
 
-        # 窗口控制按钮通用样式（始终在主题色 header 上，文字白色）
-        _ctrl_btn_qss = "QPushButton { background-color: transparent; color: white; border: none; border-radius: 18px; font-size: 20px; font-weight: bold; padding: 0; margin: 0; } QPushButton:hover { background-color: rgba(255, 255, 255, 0.2); } QPushButton:pressed { background-color: rgba(255, 255, 255, 0.3); }"
-        _max_btn_qss = "QPushButton { background-color: transparent; color: white; border: none; border-radius: 18px; font-size: 16px; font-weight: bold; padding: 0; margin: 0; } QPushButton:hover { background-color: rgba(255, 255, 255, 0.2); } QPushButton:pressed { background-color: rgba(255, 255, 255, 0.3); }"
-        _close_btn_qss = "QPushButton { background-color: transparent; color: white; border: none; border-radius: 18px; font-size: 20px; font-weight: bold; padding: 0; margin: 0; } QPushButton:hover { background-color: rgba(255, 0, 0, 0.3); color: white; } QPushButton:pressed { background-color: rgba(255, 0, 0, 0.4); }"
+        # 窗口控制按钮通用样式（始终在主题色 header 上，使用 FluentIcon 矢量图标居中）
+        _ctrl_btn_qss = "QToolButton { background-color: transparent; color: white; border: none; border-radius: 18px; padding: 0; margin: 0; } QToolButton:hover { background-color: rgba(255, 255, 255, 0.3); } QToolButton:pressed { background-color: rgba(255, 255, 255, 0.4); }"
+        _close_btn_qss = "QToolButton { background-color: transparent; color: white; border: none; border-radius: 18px; padding: 0; margin: 0; } QToolButton:hover { background-color: rgba(255, 0, 0, 0.4); } QToolButton:pressed { background-color: rgba(255, 0, 0, 0.5); }"
 
-        self.btn_minimize = PushButton("−")
+        self.btn_minimize = TransparentToolButton(FluentIcon.MINIMIZE.icon(Theme.DARK))
         self.btn_minimize.setFixedSize(36, 36)
         setCustomStyleSheet(self.btn_minimize, _ctrl_btn_qss, _ctrl_btn_qss)
         self.btn_minimize.clicked.connect(self.showMinimized)
         control_layout.addWidget(self.btn_minimize)
 
-        self.btn_maximize = PushButton("□")
+        self.btn_maximize = TransparentToolButton(FluentIcon.FULL_SCREEN.icon(Theme.DARK))
         self.btn_maximize.setFixedSize(36, 36)
-        setCustomStyleSheet(self.btn_maximize, _max_btn_qss, _max_btn_qss)
+        setCustomStyleSheet(self.btn_maximize, _ctrl_btn_qss, _ctrl_btn_qss)
         self.btn_maximize.clicked.connect(self._on_maximize)
         control_layout.addWidget(self.btn_maximize)
 
-        self.btn_close = PushButton("×")
+        self.btn_close = TransparentToolButton(FluentIcon.CLOSE.icon(Theme.DARK))
         self.btn_close.setFixedSize(36, 36)
         setCustomStyleSheet(self.btn_close, _close_btn_qss, _close_btn_qss)
         self.btn_close.clicked.connect(self.close)
@@ -2556,14 +2555,14 @@ class MainWindow(QMainWindow):
                 f"QToolButton {{ background-color: {COLOR_BG_ELEVATED[0]}; color: {COLOR_TEXT_PRIMARY[0]}; "
                 f"border: 1px solid #e9ecef; border-radius: 10px; padding: 14px 20px; "
                 f"text-align: left; font-size: 15px; margin: 8px; }} "
-                f"QToolButton:hover {{ background-color: {color_hex}20; border-color: {color_hex}; }} "
+                f"QToolButton:hover {{ background-color: {color_hex}40; border-color: {color_hex}; }} "
                 f"QToolButton:pressed, QToolButton:checked {{ background-color: {color_hex}; color: white; border-color: {color_hex}; }}"
             )
             dark_qss = (
                 f"QToolButton {{ background-color: {COLOR_BG_ELEVATED[1]}; color: {COLOR_TEXT_PRIMARY[1]}; "
                 f"border: 1px solid {COLOR_BORDER[1]}; border-radius: 10px; padding: 14px 20px; "
                 f"text-align: left; font-size: 15px; margin: 8px; }} "
-                f"QToolButton:hover {{ background-color: {color_hex}30; border-color: {color_hex}; }} "
+                f"QToolButton:hover {{ background-color: {color_hex}50; border-color: {color_hex}; }} "
                 f"QToolButton:pressed, QToolButton:checked {{ background-color: {color_hex}; color: white; border-color: {color_hex}; }}"
             )
             setCustomStyleSheet(btn, light_qss, dark_qss)
@@ -3456,10 +3455,10 @@ class MainWindow(QMainWindow):
         """最大化/还原窗口"""
         if self.isMaximized():
             self.showNormal()
-            self.btn_maximize.setText("□")
+            self.btn_maximize.setIcon(FluentIcon.FULL_SCREEN.icon(Theme.DARK))
         else:
             self.showMaximized()
-            self.btn_maximize.setText("◱")
+            self.btn_maximize.setIcon(FluentIcon.BACK_TO_WINDOW.icon(Theme.DARK))
 
     def _on_header_mouse_press(self, event):
         """鼠标按下事件，开始拖动窗口"""
