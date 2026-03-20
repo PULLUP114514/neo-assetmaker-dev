@@ -70,7 +70,7 @@ impl VideoDecoder {
         ffmpeg::init().context("Failed to initialize FFmpeg")?;
 
         // Open input file
-        let input_ctx = input(&path).context("Failed to open video file")?;
+        let mut input_ctx = input(&path).context("Failed to open video file")?;
 
         // Find best video stream
         let video_stream = input_ctx
@@ -91,12 +91,12 @@ impl VideoDecoder {
         // Create decoder
         let context_decoder = ffmpeg::codec::context::Context::from_parameters(video_stream.parameters())
             .context("Failed to create decoder context")?;
-        let decoder = context_decoder.decoder().video()
+        let mut decoder = context_decoder.decoder().video()
             .context("Failed to create video decoder")?;
 
-        let src_width = decoder.width();
-        let src_height = decoder.height();
-        let src_format = decoder.format();
+        let mut src_width = decoder.width();
+        let mut src_height = decoder.height();
+        let mut src_format = decoder.format();
 
         info!(
             "Opened video: {}x{} @ {:.1}fps, format: {:?}, cropbox: {:?}, rotation: {}",
@@ -104,15 +104,45 @@ impl VideoDecoder {
         );
 
         // Create scaler for RGB24 conversion (original size, no resize)
-        let rgb_scaler = Scaler::get(
-            src_format,
-            src_width,
-            src_height,
-            Pixel::RGB24,
-            src_width,
-            src_height,
-            Flags::BILINEAR,
-        ).context("Failed to create RGB scaler")?;
+        // Try with decoder-reported format first; if it fails (e.g. pix_fmt=NONE before
+        // first decode), probe the first frame to get the actual format and retry.
+        let rgb_scaler = match Scaler::get(
+            src_format, src_width, src_height,
+            Pixel::RGB24, src_width, src_height, Flags::BILINEAR,
+        ) {
+            Ok(scaler) => scaler,
+            Err(initial_err) => {
+                info!(
+                    "RGB scaler failed with format {:?} {}x{}: {}, probing first frame...",
+                    src_format, src_width, src_height, initial_err
+                );
+
+                match Self::probe_first_frame(&mut input_ctx, &mut decoder, video_stream_index) {
+                    Some((fmt, w, h)) => {
+                        info!("Probed actual format: {:?} {}x{}", fmt, w, h);
+                        src_format = fmt;
+                        src_width = w;
+                        src_height = h;
+                        let _ = input_ctx.seek(0, ..);
+                        decoder.flush();
+
+                        Scaler::get(
+                            src_format, src_width, src_height,
+                            Pixel::RGB24, src_width, src_height, Flags::BILINEAR,
+                        ).with_context(|| format!(
+                            "视频像素格式不受支持\n格式: {:?}\n分辨率: {}x{}\n文件: {}",
+                            src_format, src_width, src_height, path
+                        ))?
+                    }
+                    None => {
+                        anyhow::bail!(
+                            "无法解码视频帧\n格式: {:?}\n分辨率: {}x{}\n文件: {}",
+                            src_format, src_width, src_height, path
+                        );
+                    }
+                }
+            }
+        };
 
         // Calculate final scaler dimensions based on cropbox and rotation
         // Processing order: rotate full frame → crop from rotated frame
@@ -173,6 +203,32 @@ impl VideoDecoder {
             src_width,
             src_height,
         })
+    }
+
+    /// Decode up to 100 packets to discover the actual pixel format and resolution.
+    /// Used as fallback when the decoder context reports an unusable format before decoding.
+    fn probe_first_frame(
+        input_ctx: &mut ffmpeg::format::context::Input,
+        decoder: &mut ffmpeg::codec::decoder::Video,
+        video_stream_index: usize,
+    ) -> Option<(Pixel, u32, u32)> {
+        for _ in 0..100 {
+            match input_ctx.packets().next() {
+                Some((stream, packet)) => {
+                    if stream.index() != video_stream_index {
+                        continue;
+                    }
+                    if decoder.send_packet(&packet).is_ok() {
+                        let mut frame = VideoFrame::empty();
+                        if decoder.receive_frame(&mut frame).is_ok() {
+                            return Some((frame.format(), frame.width(), frame.height()));
+                        }
+                    }
+                }
+                None => break,
+            }
+        }
+        None
     }
 
     /// Read the next frame from the video
