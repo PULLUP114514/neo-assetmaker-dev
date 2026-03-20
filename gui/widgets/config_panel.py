@@ -1,37 +1,62 @@
 """
 配置面板 - 左侧配置选项卡容器
 """
+
 import os
 import shutil
 from typing import Optional
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QScrollArea,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QScrollArea,
     QFormLayout,
-    QFileDialog, QColorDialog,
-    QStackedWidget
+    QFileDialog,
+    QColorDialog,
+    QStackedWidget,
 )
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QKeySequence
 
 from qfluentwidgets import (
-    PushButton, PrimaryPushButton, ToolButton,
-    TabWidget, LineEdit, ComboBox, SpinBox, CheckBox,
-    SubtitleLabel, BodyLabel, CaptionLabel,
-    ScrollArea, TextEdit
+    PushButton,
+    PrimaryPushButton,
+    ToolButton,
+    TabWidget,
+    LineEdit,
+    ComboBox,
+    SpinBox,
+    CheckBox,
+    SubtitleLabel,
+    BodyLabel,
+    CaptionLabel,
+    ScrollArea,
+    TextEdit,
 )
 
 from gui.widgets.fluent_group_box import FluentGroupBox
 
 from config.epconfig import (
-    EPConfig, ScreenType, TransitionType, OverlayType,
-    Transition, TransitionOptions, IntroConfig,
-    Overlay, ArknightsOverlayOptions, ImageOverlayOptions
+    EPConfig,
+    ScreenType,
+    TransitionType,
+    OverlayType,
+    Transition,
+    TransitionOptions,
+    IntroConfig,
+    Overlay,
+    ArknightsOverlayOptions,
+    ImageOverlayOptions,
 )
 from config.constants import (
-    RESOLUTION_SPECS, TRANSITION_TYPES, OVERLAY_TYPES,
-    OPERATOR_CLASS_PRESETS, DEFAULT_TRANSITION_DURATION,
-    microseconds_to_seconds, seconds_to_microseconds
+    RESOLUTION_SPECS,
+    TRANSITION_TYPES,
+    OVERLAY_TYPES,
+    OPERATOR_CLASS_PRESETS,
+    DEFAULT_TRANSITION_DURATION,
+    microseconds_to_seconds,
+    seconds_to_microseconds,
 )
 
 
@@ -46,7 +71,9 @@ class ConfigPanel(QWidget):
     validate_requested = pyqtSignal()  # 验证配置请求信号
     export_requested = pyqtSignal()  # 导出素材请求信号
     capture_frame_requested = pyqtSignal()  # 截取视频帧请求信号
-    transition_image_changed = pyqtSignal(str, str)  # 过渡图片变更信号 (trans_type, abs_path)
+    transition_image_changed = pyqtSignal(
+        str, str
+    )  # 过渡图片变更信号 (trans_type, abs_path)
     ssh_upload_requested = pyqtSignal()  # SSH上传请求信号
 
     def __init__(self, parent=None):
@@ -61,6 +88,7 @@ class ConfigPanel(QWidget):
 
     def _setup_ui(self):
         """设置UI"""
+        self.scroller = QScrollArea(self)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(0)
@@ -69,7 +97,9 @@ class ConfigPanel(QWidget):
         self.tab_widget.setTabsClosable(False)  # 禁用关闭按钮
         self.tab_widget.setMovable(False)  # 禁用标签移动
         self.tab_widget.tabBar.setAddButtonVisible(False)
-        layout.addWidget(self.tab_widget)
+
+        self.scroller.setWidgetResizable(True)
+        layout.addWidget(self.scroller)
 
         self.tab_basic = self._create_basic_tab()
         self.tab_widget.addTab(self.tab_basic, "基本信息")
@@ -85,6 +115,7 @@ class ConfigPanel(QWidget):
 
         self.setMinimumWidth(380)
         self.setMaximumWidth(500)
+        self.scroller.setWidget(self.tab_widget)
 
     def _create_scroll_area(self, widget: QWidget) -> ScrollArea:
         """创建滚动区域"""
@@ -160,6 +191,7 @@ class ConfigPanel(QWidget):
         """创建视频配置选项卡"""
         from PyQt6.QtWidgets import QButtonGroup
         from qfluentwidgets import RadioButton, BodyLabel
+
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(8, 8, 8, 8)
@@ -268,7 +300,9 @@ class ConfigPanel(QWidget):
         image_layout_in.addWidget(self.edit_trans_in_image)
         self.btn_trans_in_image = PushButton("浏览...")
         self.btn_trans_in_image.setToolTip("选择进入过渡图片")
-        self.btn_trans_in_image.clicked.connect(lambda: self._browse_transition_image("in"))
+        self.btn_trans_in_image.clicked.connect(
+            lambda: self._browse_transition_image("in")
+        )
         image_layout_in.addWidget(self.btn_trans_in_image)
         in_layout.addRow("过渡图片:", image_layout_in)
         group_in.addLayout(in_layout)
@@ -307,7 +341,9 @@ class ConfigPanel(QWidget):
         image_layout_loop.addWidget(self.edit_trans_loop_image)
         self.btn_trans_loop_image = PushButton("浏览...")
         self.btn_trans_loop_image.setToolTip("选择循环过渡图片")
-        self.btn_trans_loop_image.clicked.connect(lambda: self._browse_transition_image("loop"))
+        self.btn_trans_loop_image.clicked.connect(
+            lambda: self._browse_transition_image("loop")
+        )
         image_layout_loop.addWidget(self.btn_trans_loop_image)
         loop_layout.addRow("过渡图片:", image_layout_loop)
         group_loop.addLayout(loop_layout)
@@ -342,8 +378,8 @@ class ConfigPanel(QWidget):
         self.overlay_stack.addWidget(empty_widget)
 
         # Arknights选项 (index 1)
-        arknights_widget = QWidget()
-        ark_main_layout = QVBoxLayout(arknights_widget)
+        self.arknights_widget = QWidget()
+        ark_main_layout = QVBoxLayout(self.arknights_widget)
         ark_main_layout.setContentsMargins(0, 0, 0, 0)
 
         self.group_arknights = FluentGroupBox("明日方舟模板选项")
@@ -361,13 +397,21 @@ class ConfigPanel(QWidget):
         ark_layout.addRow("干员名称:", self.edit_ark_name)
 
         self.edit_ark_top_left_rhodes = LineEdit()
-        self.edit_ark_top_left_rhodes.setPlaceholderText("可选，非空时替代默认Rhodes Logo")
-        self.edit_ark_top_left_rhodes.setToolTip("左上角自定义文字（旋转90°竖排显示），留空使用默认图片")
+        self.edit_ark_top_left_rhodes.setPlaceholderText(
+            "可选，非空时替代默认Rhodes Logo"
+        )
+        self.edit_ark_top_left_rhodes.setToolTip(
+            "左上角自定义文字（旋转90°竖排显示），留空使用默认图片"
+        )
         ark_layout.addRow("左上角文字:", self.edit_ark_top_left_rhodes)
 
         self.edit_ark_top_right_bar_text = LineEdit()
-        self.edit_ark_top_right_bar_text.setPlaceholderText("可选，非空时覆盖右上栏文字")
-        self.edit_ark_top_right_bar_text.setToolTip("右上角栏自定义文字（旋转90°竖排显示）")
+        self.edit_ark_top_right_bar_text.setPlaceholderText(
+            "可选，非空时覆盖右上栏文字"
+        )
+        self.edit_ark_top_right_bar_text.setToolTip(
+            "右上角栏自定义文字（旋转90°竖排显示）"
+        )
         ark_layout.addRow("右上栏文字:", self.edit_ark_top_right_bar_text)
 
         self.edit_ark_code = LineEdit()
@@ -433,11 +477,11 @@ class ConfigPanel(QWidget):
 
         ark_main_layout.addWidget(self.group_arknights)
         ark_main_layout.addStretch()
-        self.overlay_stack.addWidget(arknights_widget)
+        self.overlay_stack.addWidget(self.arknights_widget)
 
         # Image叠加选项 (index 2)
-        image_widget = QWidget()
-        img_main_layout = QVBoxLayout(image_widget)
+        self.image_widget = QWidget()
+        img_main_layout = QVBoxLayout(self.image_widget)
         img_main_layout.setContentsMargins(0, 0, 0, 0)
 
         self.group_image_overlay = FluentGroupBox("图片叠加选项")
@@ -468,7 +512,7 @@ class ConfigPanel(QWidget):
 
         img_main_layout.addWidget(self.group_image_overlay)
         img_main_layout.addStretch()
-        self.overlay_stack.addWidget(image_widget)
+        self.overlay_stack.addWidget(self.image_widget)
 
         layout.addWidget(self.overlay_stack)
 
@@ -513,16 +557,22 @@ class ConfigPanel(QWidget):
         self.combo_trans_in_type.currentIndexChanged.connect(self._on_config_changed)
         self.spin_trans_in_duration.valueChanged.connect(self._on_config_changed)
         self.edit_trans_in_color.textChanged.connect(self._on_config_changed)
-        self.btn_trans_in_color.clicked.connect(lambda: self._pick_color(self.edit_trans_in_color))
+        self.btn_trans_in_color.clicked.connect(
+            lambda: self._pick_color(self.edit_trans_in_color)
+        )
         self.edit_trans_in_image.textChanged.connect(self._on_config_changed)
 
         self.combo_trans_loop_type.currentIndexChanged.connect(self._on_config_changed)
         self.spin_trans_loop_duration.valueChanged.connect(self._on_config_changed)
         self.edit_trans_loop_color.textChanged.connect(self._on_config_changed)
-        self.btn_trans_loop_color.clicked.connect(lambda: self._pick_color(self.edit_trans_loop_color))
+        self.btn_trans_loop_color.clicked.connect(
+            lambda: self._pick_color(self.edit_trans_loop_color)
+        )
         self.edit_trans_loop_image.textChanged.connect(self._on_config_changed)
 
-        self.combo_overlay_type.currentIndexChanged.connect(self._on_overlay_type_changed)
+        self.combo_overlay_type.currentIndexChanged.connect(
+            self._on_overlay_type_changed
+        )
         self.spin_ark_appear.valueChanged.connect(self._on_config_changed)
         self.edit_ark_name.textChanged.connect(self._on_config_changed)
         self.edit_ark_top_left_rhodes.textChanged.connect(self._on_config_changed)
@@ -532,7 +582,9 @@ class ConfigPanel(QWidget):
         self.edit_ark_aux.textChanged.connect(self._on_config_changed)
         self.edit_ark_staff.textChanged.connect(self._on_config_changed)
         self.edit_ark_color.textChanged.connect(self._on_config_changed)
-        self.btn_ark_color.clicked.connect(lambda: self._pick_color(self.edit_ark_color))
+        self.btn_ark_color.clicked.connect(
+            lambda: self._pick_color(self.edit_ark_color)
+        )
         self.btn_ark_class_icon.clicked.connect(lambda: self._on_select_class_icon())
         self.btn_clear_class_icon.clicked.connect(lambda: self._on_clear_class_icon())
         self.btn_ark_logo.clicked.connect(lambda: self._on_select_logo())
@@ -574,32 +626,52 @@ class ConfigPanel(QWidget):
             self.spin_intro_duration.setValue(config.intro.duration)
 
             if config.transition_in.type != TransitionType.NONE:
-                index = self.combo_trans_in_type.findData(config.transition_in.type.value)
+                index = self.combo_trans_in_type.findData(
+                    config.transition_in.type.value
+                )
                 if index >= 0:
                     self.combo_trans_in_type.setCurrentIndex(index)
                 if config.transition_in.options:
-                    self.spin_trans_in_duration.setValue(config.transition_in.options.duration)
-                    self.edit_trans_in_color.setText(config.transition_in.options.background_color)
-                    self.edit_trans_in_image.setText(config.transition_in.options.image or "")
+                    self.spin_trans_in_duration.setValue(
+                        config.transition_in.options.duration
+                    )
+                    self.edit_trans_in_color.setText(
+                        config.transition_in.options.background_color
+                    )
+                    self.edit_trans_in_image.setText(
+                        config.transition_in.options.image or ""
+                    )
                     if config.transition_in.options.image and self._base_dir:
                         # 优先加载原始图片（_src 文件）用于裁切编辑
                         src_path = self._find_transition_src(self._base_dir, "in")
-                        abs_path = src_path or os.path.join(self._base_dir, config.transition_in.options.image)
+                        abs_path = src_path or os.path.join(
+                            self._base_dir, config.transition_in.options.image
+                        )
                         if os.path.exists(abs_path):
                             self.transition_image_changed.emit("in", abs_path)
 
             if config.transition_loop.type != TransitionType.NONE:
-                index = self.combo_trans_loop_type.findData(config.transition_loop.type.value)
+                index = self.combo_trans_loop_type.findData(
+                    config.transition_loop.type.value
+                )
                 if index >= 0:
                     self.combo_trans_loop_type.setCurrentIndex(index)
                 if config.transition_loop.options:
-                    self.spin_trans_loop_duration.setValue(config.transition_loop.options.duration)
-                    self.edit_trans_loop_color.setText(config.transition_loop.options.background_color)
-                    self.edit_trans_loop_image.setText(config.transition_loop.options.image or "")
+                    self.spin_trans_loop_duration.setValue(
+                        config.transition_loop.options.duration
+                    )
+                    self.edit_trans_loop_color.setText(
+                        config.transition_loop.options.background_color
+                    )
+                    self.edit_trans_loop_image.setText(
+                        config.transition_loop.options.image or ""
+                    )
                     if config.transition_loop.options.image and self._base_dir:
                         # 优先加载原始图片（_src 文件）用于裁切编辑
                         src_path = self._find_transition_src(self._base_dir, "loop")
-                        abs_path = src_path or os.path.join(self._base_dir, config.transition_loop.options.image)
+                        abs_path = src_path or os.path.join(
+                            self._base_dir, config.transition_loop.options.image
+                        )
                         if os.path.exists(abs_path):
                             self.transition_image_changed.emit("loop", abs_path)
 
@@ -655,28 +727,32 @@ class ConfigPanel(QWidget):
         self._config.intro.file = self.edit_intro_file.text()
         self._config.intro.duration = self.spin_intro_duration.value()
 
-        trans_in_type = TransitionType.from_string(self.combo_trans_in_type.currentData())
+        trans_in_type = TransitionType.from_string(
+            self.combo_trans_in_type.currentData()
+        )
         if trans_in_type != TransitionType.NONE:
             self._config.transition_in = Transition(
                 type=trans_in_type,
                 options=TransitionOptions(
                     duration=self.spin_trans_in_duration.value(),
                     background_color=self.edit_trans_in_color.text(),
-                    image=self.edit_trans_in_image.text() or None
-                )
+                    image=self.edit_trans_in_image.text() or None,
+                ),
             )
         else:
             self._config.transition_in = Transition()
 
-        trans_loop_type = TransitionType.from_string(self.combo_trans_loop_type.currentData())
+        trans_loop_type = TransitionType.from_string(
+            self.combo_trans_loop_type.currentData()
+        )
         if trans_loop_type != TransitionType.NONE:
             self._config.transition_loop = Transition(
                 type=trans_loop_type,
                 options=TransitionOptions(
                     duration=self.spin_trans_loop_duration.value(),
                     background_color=self.edit_trans_loop_color.text(),
-                    image=self.edit_trans_loop_image.text() or None
-                )
+                    image=self.edit_trans_loop_image.text() or None,
+                ),
             )
         else:
             self._config.transition_loop = Transition()
@@ -696,8 +772,8 @@ class ConfigPanel(QWidget):
                     staff_text=self.edit_ark_staff.text(),
                     color=self.edit_ark_color.text(),
                     operator_class_icon=self.edit_ark_class_icon.text(),
-                    logo=self.edit_ark_logo.text()
-                )
+                    logo=self.edit_ark_logo.text(),
+                ),
             )
         elif overlay_type == OverlayType.IMAGE:
             self._config.overlay = Overlay(
@@ -705,8 +781,8 @@ class ConfigPanel(QWidget):
                 image_options=ImageOverlayOptions(
                     appear_time=self.spin_img_appear.value(),
                     duration=self.spin_img_duration.value(),
-                    image=self.edit_img_overlay.text()
-                )
+                    image=self.edit_img_overlay.text(),
+                ),
             )
         else:
             self._config.overlay = Overlay(type=overlay_type)
@@ -734,16 +810,20 @@ class ConfigPanel(QWidget):
     def _on_overlay_type_changed(self):
         """叠加类型变更"""
         overlay_type = self.combo_overlay_type.currentData()
+
         # 使用QStackedWidget切换，避免布局抖动
         index = {"none": 0, "arknights": 1, "image": 2}.get(overlay_type, 0)
         self.overlay_stack.setCurrentIndex(index)
+
+        # 修改可见性 在none时不显示
+        self.overlay_stack.setVisible(overlay_type != "none")
+
         self._on_config_changed()
 
     def _browse_icon(self):
         """浏览图标文件"""
         path, _ = QFileDialog.getOpenFileName(
-            self, "选择图标", self._base_dir,
-            "图片文件 (*.png *.jpg *.jpeg)"
+            self, "选择图标", self._base_dir, "图片文件 (*.png *.jpg *.jpeg)"
         )
         if path:
             if self._base_dir:
@@ -757,7 +837,9 @@ class ConfigPanel(QWidget):
                         dest_path = os.path.join(self._base_dir, f"icon_{counter}{ext}")
                         counter += 1
 
-                if not os.path.exists(dest_path) or not os.path.samefile(path, dest_path):
+                if not os.path.exists(dest_path) or not os.path.samefile(
+                    path, dest_path
+                ):
                     try:
                         shutil.copy2(path, dest_path)
                     except Exception as e:
@@ -773,13 +855,11 @@ class ConfigPanel(QWidget):
         """浏览循环视频/图片"""
         if self.radio_loop_image.isChecked():
             path, _ = QFileDialog.getOpenFileName(
-                self, "选择循环图片", self._base_dir,
-                "图片文件 (*.png *.jpg *.jpeg)"
+                self, "选择循环图片", self._base_dir, "图片文件 (*.png *.jpg *.jpeg)"
             )
         else:
             path, _ = QFileDialog.getOpenFileName(
-                self, "选择循环视频", self._base_dir,
-                "视频文件 (*.mp4 *.avi *.mov)"
+                self, "选择循环视频", self._base_dir, "视频文件 (*.mp4 *.avi *.mov)"
             )
         if path:
             rel_path = self._copy_to_project_dir(path, "loop")
@@ -818,8 +898,7 @@ class ConfigPanel(QWidget):
     def _browse_intro(self):
         """浏览入场视频"""
         path, _ = QFileDialog.getOpenFileName(
-            self, "选择入场视频", self._base_dir,
-            "视频文件 (*.mp4 *.avi *.mov)"
+            self, "选择入场视频", self._base_dir, "视频文件 (*.mp4 *.avi *.mov)"
         )
         if path:
             rel_path = self._copy_to_project_dir(path, "intro")
@@ -833,6 +912,7 @@ class ConfigPanel(QWidget):
     def _pick_color(self, edit: LineEdit):
         """选择颜色"""
         from PyQt6.QtGui import QColor as QC
+
         current = QC(edit.text())
         color = QColorDialog.getColor(current, self, "选择颜色")
         if color.isValid():
@@ -841,8 +921,7 @@ class ConfigPanel(QWidget):
     def _on_select_class_icon(self):
         """选择职业图标"""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "选择职业图标", self._base_dir,
-            "图片文件 (*.png *.jpg *.jpeg *.bmp)"
+            self, "选择职业图标", self._base_dir, "图片文件 (*.png *.jpg *.jpeg *.bmp)"
         )
         if file_path:
             rel_path = self._copy_to_project_dir(file_path, "class_icon")
@@ -858,8 +937,7 @@ class ConfigPanel(QWidget):
     def _on_select_logo(self):
         """选择Logo"""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "选择Logo", self._base_dir,
-            "图片文件 (*.png *.jpg *.jpeg *.bmp)"
+            self, "选择Logo", self._base_dir, "图片文件 (*.png *.jpg *.jpeg *.bmp)"
         )
         if file_path:
             rel_path = self._copy_to_project_dir(file_path, "ark_logo")
@@ -902,6 +980,7 @@ class ConfigPanel(QWidget):
 
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).warning(f"复制文件失败: {e}")
             return src_path
 
@@ -913,6 +992,7 @@ class ConfigPanel(QWidget):
             绝对路径或 None
         """
         import glob
+
         pattern = os.path.join(base_dir, f"trans_{trans_type}_src.*")
         matches = glob.glob(pattern)
         if matches:
@@ -922,8 +1002,7 @@ class ConfigPanel(QWidget):
     def _browse_transition_image(self, trans_type: str):
         """浏览过渡图片"""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "选择过渡图片", self._base_dir,
-            "图片文件 (*.png *.jpg *.jpeg)"
+            self, "选择过渡图片", self._base_dir, "图片文件 (*.png *.jpg *.jpeg)"
         )
         if file_path:
             self._process_transition_image(file_path, trans_type)
@@ -970,8 +1049,7 @@ class ConfigPanel(QWidget):
     def _on_select_img_overlay(self):
         """选择叠加图片"""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "选择叠加图片", self._base_dir,
-            "图片文件 (*.png *.jpg *.jpeg)"
+            self, "选择叠加图片", self._base_dir, "图片文件 (*.png *.jpg *.jpeg)"
         )
         if file_path:
             rel_path = self._copy_to_project_dir(file_path, "overlay")
