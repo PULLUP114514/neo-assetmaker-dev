@@ -17,60 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Login / Register
+# Register (passwordless)
 # ---------------------------------------------------------------------------
-
-class AuthLoginWorker(QThread):
-    """Run ``auth_service.login()`` in a background thread.
-
-    Signals
-    -------
-    completed(bool)
-        Login result (True = success, False = FIDO2 required).
-    fido2_required(str, str)
-        Emitted when FIDO2 2FA is needed (fido2_token, username).
-    error(str)
-        Error message on failure.
-    """
-
-    completed = Signal(bool)
-    fido2_required = Signal(str, str)
-    error = Signal(str)
-
-    def __init__(
-        self,
-        auth_service: Any,
-        username: str,
-        password: str,
-        parent: Optional[QObject] = None,
-    ) -> None:
-        super().__init__(parent)
-        self._auth = auth_service
-        self._username = username
-        self._password = password
-        self._fido2_emitted = False
-
-        # Temporarily intercept the fido2_required signal from auth_service
-        self._auth.fido2_required.connect(self._on_fido2)
-
-    def _on_fido2(self, token: str, username: str) -> None:
-        self._fido2_emitted = True
-        self.fido2_required.emit(token, username)
-
-    def run(self) -> None:
-        try:
-            result = self._auth.login(self._username, self._password)
-            if not self._fido2_emitted:
-                self.completed.emit(result)
-        except Exception as exc:
-            logger.error("AuthLoginWorker error: %s", exc)
-            self.error.emit(str(exc))
-        finally:
-            try:
-                self._auth.fido2_required.disconnect(self._on_fido2)
-            except (TypeError, RuntimeError):
-                pass
-
 
 class AuthRegisterWorker(QThread):
     """Run ``auth_service.register()`` in a background thread."""
@@ -83,18 +31,16 @@ class AuthRegisterWorker(QThread):
         auth_service: Any,
         username: str,
         email: str,
-        password: str,
         parent: Optional[QObject] = None,
     ) -> None:
         super().__init__(parent)
         self._auth = auth_service
         self._username = username
         self._email = email
-        self._password = password
 
     def run(self) -> None:
         try:
-            result = self._auth.register(self._username, self._email, self._password)
+            result = self._auth.register(self._username, self._email)
             self.completed.emit(result)
         except Exception as exc:
             logger.error("AuthRegisterWorker error: %s", exc)
