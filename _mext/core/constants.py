@@ -44,3 +44,9 @@ DEFAULT_WINDOW_HEIGHT: int = 800
 SEARCH_DEBOUNCE_MS: int = 350
 MATERIAL_CARD_WIDTH: int = 220
 MATERIAL_CARD_HEIGHT: int = 280
+
+# Gallery / Waterfall
+GALLERY_CARD_COLUMN_WIDTH: int = 260    # 瀑布流默认列宽
+THUMBNAIL_CACHE_SIZE: int = 200         # LRU 缓存最大条目
+THUMBNAIL_CONCURRENT_LOADS: int = 6     # 并发缩略图加载数
+MATERIALS_PER_PAGE: int = 20            # 每页素材数量
