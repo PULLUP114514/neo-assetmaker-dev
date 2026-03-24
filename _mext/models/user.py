@@ -54,6 +54,7 @@ class Fido2Mode(str, Enum):
     """
 
     DISABLED = "disabled"
+    # DEPRECATED: password+2FA mode, retained for server data compatibility
     SECOND_FACTOR = "2fa"
     PASSWORDLESS = "passwordless"
 

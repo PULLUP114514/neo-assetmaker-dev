@@ -63,3 +63,47 @@ COLOR_SELECTION_BORDER = ("#ff6b8b", "#ff8fa3")   # (light, dark)
 
 COLOR_PLACEHOLDER_BG = ("#e0e0e0", "#3a3a3a")    # (light, dark)
 COLOR_PLACEHOLDER_FG = ("#aaaaaa", "#666666")    # (light, dark)
+
+# ── 画廊卡片 (Gallery / Waterfall) ─────────────────────────
+
+GALLERY_CARD_MIN_WIDTH: int = 240
+GALLERY_CARD_MAX_WIDTH: int = 380
+GALLERY_GRID_SPACING: int = 16
+GALLERY_CARD_BORDER_RADIUS: int = 12
+
+# ── 头像尺寸 ──────────────────────────────────────────────
+
+AVATAR_SM: int = 24     # 卡片内小头像
+AVATAR_MD: int = 36     # 评论区头像
+AVATAR_LG: int = 48     # 详情页创作者头像
+
+# ── 详情页 ────────────────────────────────────────────────
+
+DETAIL_MAX_WIDTH: int = 1200
+DETAIL_IMAGE_MAX_HEIGHT: int = 600
+DETAIL_SIDEBAR_WIDTH: int = 320
+
+# ── Hover 遮罩颜色 ────────────────────────────────────────
+
+COLOR_HOVER_OVERLAY = ("rgba(0,0,0,0.4)", "rgba(0,0,0,0.5)")
+
+# ── 评论区 ──────────────────────────────────────────────
+
+COMMENT_INPUT_MIN_HEIGHT: int = 60
+COMMENT_INPUT_MAX_HEIGHT: int = 120
+COMMENT_BUBBLE_PADDING: int = 12
+
+# ── 创作者页 ────────────────────────────────────────────
+
+CREATOR_AVATAR_XL: int = 80
+CREATOR_HEADER_HEIGHT: int = 200
+
+# ── 精选区 ──────────────────────────────────────────────
+
+FEATURED_BANNER_HEIGHT: int = 200
+FEATURED_CARD_WIDTH: int = 280
+
+# ── 相关素材 ────────────────────────────────────────────
+
+RELATED_SECTION_HEIGHT: int = 280
+RELATED_CARD_WIDTH: int = 200
