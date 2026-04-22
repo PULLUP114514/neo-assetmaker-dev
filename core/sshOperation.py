@@ -79,9 +79,8 @@ def RefreshRemoteMaterialListCache(ssh):
             # 下载预览图
             targetPath = os.path.dirname(targetJsonFile) + "/"
             iconPath = GetIconPath(os.path.join(currentPath, baseJsonFileName))
-            if iconPath is None:
-                continue
-            scp.get(targetPath + iconPath, os.path.join(currentPath, iconPath))
+            if not (iconPath is None):
+                scp.get(targetPath + iconPath, os.path.join(currentPath, iconPath))
 
             # 保存远程文件路径
             with open(
