@@ -99,6 +99,17 @@ class Material:
     is_active: bool = True
     is_favorited: bool = False
 
+    # Gallery fields (Phase 1 — safe defaults for backward compatibility)
+    preview_aspect_ratio: float = 1.5   # 预览图宽高比 (w/h), 默认 3:2
+    creator_id: str = ""                # 创作者 ID
+    creator_avatar_url: str = ""        # 创作者头像 URL
+
+    # Social fields (Phase 2 — API 就绪后启用)
+    like_count: int = 0
+    comment_count: int = 0
+    is_liked: bool = False
+    is_featured: bool = False
+
     @classmethod
     def from_dict(cls, data: dict) -> Material:
         """Create a Material from a server response dictionary.
@@ -146,6 +157,15 @@ class Material:
             download_count=data.get("download_count", 0),
             is_active=data.get("is_active", True),
             is_favorited=data.get("is_favorited", False),
+            # Gallery fields
+            preview_aspect_ratio=data.get("preview_aspect_ratio", 1.5),
+            creator_id=data.get("creator_id", ""),
+            creator_avatar_url=data.get("creator_avatar_url", ""),
+            # Social fields
+            like_count=data.get("like_count", 0),
+            comment_count=data.get("comment_count", 0),
+            is_liked=data.get("is_liked", False),
+            is_featured=data.get("is_featured", False),
         )
 
     def to_dict(self) -> dict:
@@ -165,6 +185,13 @@ class Material:
             "download_count": self.download_count,
             "is_active": self.is_active,
             "is_favorited": self.is_favorited,
+            "preview_aspect_ratio": self.preview_aspect_ratio,
+            "creator_id": self.creator_id,
+            "creator_avatar_url": self.creator_avatar_url,
+            "like_count": self.like_count,
+            "comment_count": self.comment_count,
+            "is_liked": self.is_liked,
+            "is_featured": self.is_featured,
         }
 
     @property

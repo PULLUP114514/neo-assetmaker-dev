@@ -17,60 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Login / Register
+# Register (passwordless)
 # ---------------------------------------------------------------------------
-
-class AuthLoginWorker(QThread):
-    """Run ``auth_service.login()`` in a background thread.
-
-    Signals
-    -------
-    completed(bool)
-        Login result (True = success, False = FIDO2 required).
-    fido2_required(str, str)
-        Emitted when FIDO2 2FA is needed (fido2_token, username).
-    error(str)
-        Error message on failure.
-    """
-
-    completed = Signal(bool)
-    fido2_required = Signal(str, str)
-    error = Signal(str)
-
-    def __init__(
-        self,
-        auth_service: Any,
-        username: str,
-        password: str,
-        parent: Optional[QObject] = None,
-    ) -> None:
-        super().__init__(parent)
-        self._auth = auth_service
-        self._username = username
-        self._password = password
-        self._fido2_emitted = False
-
-        # Temporarily intercept the fido2_required signal from auth_service
-        self._auth.fido2_required.connect(self._on_fido2)
-
-    def _on_fido2(self, token: str, username: str) -> None:
-        self._fido2_emitted = True
-        self.fido2_required.emit(token, username)
-
-    def run(self) -> None:
-        try:
-            result = self._auth.login(self._username, self._password)
-            if not self._fido2_emitted:
-                self.completed.emit(result)
-        except Exception as exc:
-            logger.error("AuthLoginWorker error: %s", exc)
-            self.error.emit(str(exc))
-        finally:
-            try:
-                self._auth.fido2_required.disconnect(self._on_fido2)
-            except (TypeError, RuntimeError):
-                pass
-
 
 class AuthRegisterWorker(QThread):
     """Run ``auth_service.register()`` in a background thread."""
@@ -83,18 +31,16 @@ class AuthRegisterWorker(QThread):
         auth_service: Any,
         username: str,
         email: str,
-        password: str,
         parent: Optional[QObject] = None,
     ) -> None:
         super().__init__(parent)
         self._auth = auth_service
         self._username = username
         self._email = email
-        self._password = password
 
     def run(self) -> None:
         try:
-            result = self._auth.register(self._username, self._email, self._password)
+            result = self._auth.register(self._username, self._email)
             self.completed.emit(result)
         except Exception as exc:
             logger.error("AuthRegisterWorker error: %s", exc)
@@ -223,6 +169,41 @@ class MaterialsLoadWorker(QThread):
 # ---------------------------------------------------------------------------
 # Forum: resolve download URL (two-step)
 # ---------------------------------------------------------------------------
+
+class MaterialDetailWorker(QThread):
+    """Fetch full details for a single material.  GET /materials/{id}
+
+    Signals
+    -------
+    completed(dict)
+        The raw material detail dictionary.
+    error(str)
+        Error description.
+    """
+
+    completed = Signal(dict)
+    error = Signal(str)
+
+    def __init__(
+        self,
+        api_client: ApiClient,
+        material_id: str,
+        parent: Optional[QObject] = None,
+    ) -> None:
+        super().__init__(parent)
+        self._api = api_client
+        self._material_id = material_id
+
+    def run(self) -> None:
+        try:
+            response = self._api.get(f"materials/{self._material_id}")
+            self.completed.emit(response)
+        except ApiError as exc:
+            self.error.emit(exc.detail or str(exc))
+        except Exception as exc:
+            logger.error("MaterialDetailWorker error: %s", exc)
+            self.error.emit(str(exc))
+
 
 class DownloadUrlWorker(QThread):
     """Request signed download URL then verify to get presigned URL.
@@ -426,4 +407,381 @@ class SessionRestoreWorker(QThread):
                 self.completed.emit(False)
         except Exception as exc:
             logger.error("SessionRestoreWorker error: %s", exc)
+            self.error.emit(str(exc))
+
+
+# ---------------------------------------------------------------------------
+# Comments
+# ---------------------------------------------------------------------------
+
+class CommentsLoadWorker(QThread):
+    """Fetch comments for a material.  GET /materials/{id}/comments?page=&per_page=
+
+    Signals
+    -------
+    completed(list, int)
+        (comments_raw: list[dict], total: int)
+    error(str)
+        Error description.
+    """
+
+    completed = Signal(list, int)
+    error = Signal(str)
+
+    def __init__(
+        self,
+        api_client: ApiClient,
+        material_id: str,
+        page: int = 1,
+        per_page: int = 20,
+        parent: Optional[QObject] = None,
+    ) -> None:
+        super().__init__(parent)
+        self._api = api_client
+        self._material_id = material_id
+        self._page = page
+        self._per_page = per_page
+
+    def run(self) -> None:
+        try:
+            response = self._api.get(
+                f"materials/{self._material_id}/comments",
+                params={"page": self._page, "per_page": self._per_page},
+            )
+            items = response.get("items", [])
+            total = response.get("total", 0)
+            self.completed.emit(items, total)
+        except ApiError as exc:
+            self.error.emit(exc.detail or str(exc))
+        except Exception as exc:
+            logger.error("CommentsLoadWorker error: %s", exc)
+            self.error.emit(str(exc))
+
+
+class CommentPostWorker(QThread):
+    """Post a new comment.  POST /materials/{id}/comments
+
+    Signals
+    -------
+    completed(dict)
+        The newly created comment as a raw dict.
+    error(str)
+        Error description.
+    """
+
+    completed = Signal(dict)
+    error = Signal(str)
+
+    def __init__(
+        self,
+        api_client: ApiClient,
+        material_id: str,
+        content: str,
+        parent: Optional[QObject] = None,
+    ) -> None:
+        super().__init__(parent)
+        self._api = api_client
+        self._material_id = material_id
+        self._content = content
+
+    def run(self) -> None:
+        try:
+            response = self._api.post(
+                f"materials/{self._material_id}/comments",
+                json={"content": self._content},
+            )
+            self.completed.emit(response)
+        except ApiError as exc:
+            self.error.emit(exc.detail or str(exc))
+        except Exception as exc:
+            logger.error("CommentPostWorker error: %s", exc)
+            self.error.emit(str(exc))
+
+
+class CommentDeleteWorker(QThread):
+    """Delete a comment.  DELETE /comments/{id}
+
+    Signals
+    -------
+    completed(str)
+        The deleted comment ID.
+    error(str)
+        Error description.
+    """
+
+    completed = Signal(str)
+    error = Signal(str)
+
+    def __init__(
+        self,
+        api_client: ApiClient,
+        comment_id: str,
+        parent: Optional[QObject] = None,
+    ) -> None:
+        super().__init__(parent)
+        self._api = api_client
+        self._comment_id = comment_id
+
+    def run(self) -> None:
+        try:
+            self._api.delete(f"comments/{self._comment_id}")
+            self.completed.emit(self._comment_id)
+        except ApiError as exc:
+            self.error.emit(exc.detail or str(exc))
+        except Exception as exc:
+            logger.error("CommentDeleteWorker error: %s", exc)
+            self.error.emit(str(exc))
+
+
+# ---------------------------------------------------------------------------
+# Like / Favorite toggle
+# ---------------------------------------------------------------------------
+
+class LikeToggleWorker(QThread):
+    """Toggle like state.  POST (like) or DELETE (unlike) /materials/{id}/like
+
+    Signals
+    -------
+    completed(str, bool, int)
+        (material_id, is_liked, new_like_count)
+    error(str)
+        Error description.
+    """
+
+    completed = Signal(str, bool, int)
+    error = Signal(str)
+
+    def __init__(
+        self,
+        api_client: ApiClient,
+        material_id: str,
+        should_like: bool,
+        parent: Optional[QObject] = None,
+    ) -> None:
+        super().__init__(parent)
+        self._api = api_client
+        self._material_id = material_id
+        self._should_like = should_like
+
+    def run(self) -> None:
+        try:
+            if self._should_like:
+                response = self._api.post(f"materials/{self._material_id}/like")
+            else:
+                response = self._api.delete(f"materials/{self._material_id}/like")
+            is_liked = response.get("is_liked", self._should_like)
+            like_count = response.get("like_count", 0)
+            self.completed.emit(self._material_id, is_liked, like_count)
+        except ApiError as exc:
+            self.error.emit(exc.detail or str(exc))
+        except Exception as exc:
+            logger.error("LikeToggleWorker error: %s", exc)
+            self.error.emit(str(exc))
+
+
+class FavoriteToggleWorker(QThread):
+    """Toggle favorite state.  POST or DELETE /materials/{id}/favorite
+
+    Signals
+    -------
+    completed(str, bool)
+        (material_id, is_favorited)
+    error(str)
+        Error description.
+    """
+
+    completed = Signal(str, bool)
+    error = Signal(str)
+
+    def __init__(
+        self,
+        api_client: ApiClient,
+        material_id: str,
+        should_favorite: bool,
+        parent: Optional[QObject] = None,
+    ) -> None:
+        super().__init__(parent)
+        self._api = api_client
+        self._material_id = material_id
+        self._should_favorite = should_favorite
+
+    def run(self) -> None:
+        try:
+            if self._should_favorite:
+                response = self._api.post(f"materials/{self._material_id}/favorite")
+            else:
+                response = self._api.delete(f"materials/{self._material_id}/favorite")
+            is_fav = response.get("is_favorited", self._should_favorite)
+            self.completed.emit(self._material_id, is_fav)
+        except ApiError as exc:
+            self.error.emit(exc.detail or str(exc))
+        except Exception as exc:
+            logger.error("FavoriteToggleWorker error: %s", exc)
+            self.error.emit(str(exc))
+
+
+# ---------------------------------------------------------------------------
+# Creator profile & works
+# ---------------------------------------------------------------------------
+
+class CreatorProfileWorker(QThread):
+    """Fetch a creator's profile.  GET /users/{id}/profile
+
+    Signals
+    -------
+    completed(dict)
+        The profile data.
+    error(str)
+        Error description.
+    """
+
+    completed = Signal(dict)
+    error = Signal(str)
+
+    def __init__(
+        self,
+        api_client: ApiClient,
+        creator_id: str,
+        parent: Optional[QObject] = None,
+    ) -> None:
+        super().__init__(parent)
+        self._api = api_client
+        self._creator_id = creator_id
+
+    def run(self) -> None:
+        try:
+            response = self._api.get(f"users/{self._creator_id}/profile")
+            self.completed.emit(response)
+        except ApiError as exc:
+            self.error.emit(exc.detail or str(exc))
+        except Exception as exc:
+            logger.error("CreatorProfileWorker error: %s", exc)
+            self.error.emit(str(exc))
+
+
+class CreatorWorksWorker(QThread):
+    """Fetch a creator's materials.  GET /users/{id}/materials?page=&per_page=
+
+    Signals
+    -------
+    completed(list, int)
+        (materials_raw: list[dict], total: int)
+    error(str)
+        Error description.
+    """
+
+    completed = Signal(list, int)
+    error = Signal(str)
+
+    def __init__(
+        self,
+        api_client: ApiClient,
+        creator_id: str,
+        page: int = 1,
+        per_page: int = 20,
+        parent: Optional[QObject] = None,
+    ) -> None:
+        super().__init__(parent)
+        self._api = api_client
+        self._creator_id = creator_id
+        self._page = page
+        self._per_page = per_page
+
+    def run(self) -> None:
+        try:
+            response = self._api.get(
+                f"users/{self._creator_id}/materials",
+                params={"page": self._page, "per_page": self._per_page},
+            )
+            items = response.get("items", [])
+            total = response.get("total", 0)
+            self.completed.emit(items, total)
+        except ApiError as exc:
+            self.error.emit(exc.detail or str(exc))
+        except Exception as exc:
+            logger.error("CreatorWorksWorker error: %s", exc)
+            self.error.emit(str(exc))
+
+
+# ---------------------------------------------------------------------------
+# Featured / Related materials
+# ---------------------------------------------------------------------------
+
+class FeaturedMaterialsWorker(QThread):
+    """Fetch featured materials.  GET /materials/featured?limit=
+
+    Signals
+    -------
+    completed(list)
+        list[dict] of featured material data.
+    error(str)
+        Error description.
+    """
+
+    completed = Signal(list)
+    error = Signal(str)
+
+    def __init__(
+        self,
+        api_client: ApiClient,
+        limit: int = 10,
+        parent: Optional[QObject] = None,
+    ) -> None:
+        super().__init__(parent)
+        self._api = api_client
+        self._limit = limit
+
+    def run(self) -> None:
+        try:
+            response = self._api.get(
+                "materials/featured",
+                params={"limit": self._limit},
+            )
+            items = response if isinstance(response, list) else response.get("items", [])
+            self.completed.emit(items)
+        except ApiError as exc:
+            self.error.emit(exc.detail or str(exc))
+        except Exception as exc:
+            logger.error("FeaturedMaterialsWorker error: %s", exc)
+            self.error.emit(str(exc))
+
+
+class RelatedMaterialsWorker(QThread):
+    """Fetch related materials.  GET /materials/{id}/related?limit=
+
+    Signals
+    -------
+    completed(list)
+        list[dict] of related material data.
+    error(str)
+        Error description.
+    """
+
+    completed = Signal(list)
+    error = Signal(str)
+
+    def __init__(
+        self,
+        api_client: ApiClient,
+        material_id: str,
+        limit: int = 6,
+        parent: Optional[QObject] = None,
+    ) -> None:
+        super().__init__(parent)
+        self._api = api_client
+        self._material_id = material_id
+        self._limit = limit
+
+    def run(self) -> None:
+        try:
+            response = self._api.get(
+                f"materials/{self._material_id}/related",
+                params={"limit": self._limit},
+            )
+            items = response if isinstance(response, list) else response.get("items", [])
+            self.completed.emit(items)
+        except ApiError as exc:
+            self.error.emit(exc.detail or str(exc))
+        except Exception as exc:
+            logger.error("RelatedMaterialsWorker error: %s", exc)
             self.error.emit(str(exc))

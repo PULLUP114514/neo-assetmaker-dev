@@ -21,6 +21,7 @@ ArknightsPassMaker/
 .idea/
 *.swp
 *.swo
+.claude
 
 # Logs
 logs/
