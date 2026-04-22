@@ -1,8 +1,8 @@
 """Login page for the asset store.
 
-Provides username/password login, DRM (OAuth2) login, FIDO2 security
-key authentication, and a registration link. Uses QFluentWidgets
-components for a modern Fluent Design appearance.
+Provides DRM (OAuth2) login, FIDO2 security key authentication, and
+passwordless registration. Uses QFluentWidgets components for a modern
+Fluent Design appearance.
 """
 
 from __future__ import annotations
@@ -16,12 +16,10 @@ from qfluentwidgets import (
     InfoBar,
     InfoBarPosition,
     LineEdit,
-    PasswordLineEdit,
     PrimaryPushButton,
     PushButton,
     SubtitleLabel,
     TitleLabel,
-    setCustomStyleSheet,
 )
 from PyQt6.QtCore import Qt, pyqtSignal as Signal, pyqtSlot as Slot
 from PyQt6.QtWidgets import (
@@ -34,29 +32,24 @@ from _mext.core.service_manager import ServiceManager
 from _mext.services.api_client import ApiError
 from _mext.services.api_worker import (
     ApiCallWorker,
-    AuthLoginWorker,
     AuthRegisterWorker,
     DrmLoginInitWorker,
 )
 from _mext.ui.dialogs.fido2_touch_dialog import Fido2TouchDialog
-from _mext.ui.styles import COLOR_BORDER
 
 logger = logging.getLogger(__name__)
 
 
 class LoginPage(QWidget):
-    """Authentication page with multiple login methods.
+    """Authentication page with DRM and FIDO2 login methods.
 
     Signals
     -------
     login_successful()
         Emitted when the user is successfully authenticated.
-    register_requested()
-        Emitted when the user clicks the register link.
     """
 
     login_successful = Signal()
-    register_requested = Signal()
 
     def __init__(
         self,
@@ -66,7 +59,6 @@ class LoginPage(QWidget):
         super().__init__(parent)
         self._services = service_manager
         self._is_registering = False
-        self._pending_fido2 = False
         self._service_signals_connected = False
 
         self._setup_ui()
@@ -89,54 +81,34 @@ class LoginPage(QWidget):
         self._title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         form_layout.addWidget(self._title_label)
 
-        self._subtitle_label = SubtitleLabel("登录你的账户", form_container)
+        self._subtitle_label = SubtitleLabel("选择登录方式", form_container)
         self._subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         form_layout.addWidget(self._subtitle_label)
 
         form_layout.addSpacing(16)
 
-        # Username field
+        # Username field (registration only)
         self._username_edit = LineEdit(form_container)
         self._username_edit.setPlaceholderText("用户名")
         self._username_edit.setClearButtonEnabled(True)
+        self._username_edit.setVisible(False)
         form_layout.addWidget(self._username_edit)
 
-        # Email field (only for registration)
+        # Email field (registration only)
         self._email_edit = LineEdit(form_container)
         self._email_edit.setPlaceholderText("邮箱地址")
         self._email_edit.setClearButtonEnabled(True)
         self._email_edit.setVisible(False)
         form_layout.addWidget(self._email_edit)
 
-        # Password field
-        self._password_edit = PasswordLineEdit(form_container)
-        self._password_edit.setPlaceholderText("密码")
-        form_layout.addWidget(self._password_edit)
+        # Register button (registration only)
+        self._register_btn = PrimaryPushButton("注册", form_container)
+        self._register_btn.setFixedHeight(40)
+        self._register_btn.setVisible(False)
+        form_layout.addWidget(self._register_btn)
 
-        form_layout.addSpacing(8)
-
-        # Login button
-        self._login_btn = PrimaryPushButton("登录", form_container)
-        self._login_btn.setFixedHeight(40)
-        form_layout.addWidget(self._login_btn)
-
-        # Separator
-        separator_layout = QHBoxLayout()
-        left_line = QWidget(form_container)
-        left_line.setFixedHeight(1)
-        setCustomStyleSheet(left_line, f"background-color: {COLOR_BORDER[0]};", f"background-color: {COLOR_BORDER[1]};")
-        or_label = BodyLabel("或", form_container)
-        or_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        right_line = QWidget(form_container)
-        right_line.setFixedHeight(1)
-        setCustomStyleSheet(right_line, f"background-color: {COLOR_BORDER[0]};", f"background-color: {COLOR_BORDER[1]};")
-        separator_layout.addWidget(left_line)
-        separator_layout.addWidget(or_label)
-        separator_layout.addWidget(right_line)
-        form_layout.addLayout(separator_layout)
-
-        # DRM Login button (OAuth2)
-        self._drm_login_btn = PushButton("使用 DRM 登录", form_container)
+        # DRM Login button (OAuth2) — primary action
+        self._drm_login_btn = PrimaryPushButton("使用 DRM 登录", form_container)
         self._drm_login_btn.setFixedHeight(40)
         form_layout.addWidget(self._drm_login_btn)
 
@@ -150,7 +122,7 @@ class LoginPage(QWidget):
         # Register / back to login link
         link_layout = QHBoxLayout()
         link_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._toggle_label = BodyLabel("没有账户？", form_container)
+        self._toggle_label = BodyLabel("首次使用？", form_container)
         self._toggle_link = HyperlinkButton("", "注册", form_container)
         link_layout.addWidget(self._toggle_label)
         link_layout.addWidget(self._toggle_link)
@@ -160,11 +132,10 @@ class LoginPage(QWidget):
 
     def _connect_signals(self) -> None:
         """Wire button clicks (service signals deferred to showEvent)."""
-        self._login_btn.clicked.connect(self._on_login_clicked)
         self._drm_login_btn.clicked.connect(self._on_drm_login_clicked)
         self._fido2_btn.clicked.connect(self._on_fido2_login_clicked)
+        self._register_btn.clicked.connect(self._on_register_clicked)
         self._toggle_link.clicked.connect(self._toggle_register_mode)
-        self._password_edit.returnPressed.connect(self._on_login_clicked)
 
     def showEvent(self, event: object) -> None:  # noqa: N802
         """Connect service signals on first show to avoid eager service creation."""
@@ -172,51 +143,36 @@ class LoginPage(QWidget):
         if not self._service_signals_connected:
             self._service_signals_connected = True
             self._services.auth_service.login_error.connect(self._on_login_error)
-            self._services.auth_service.fido2_required.connect(self._on_fido2_required)
+
+    # -- Registration --
 
     @Slot()
-    def _on_login_clicked(self) -> None:
-        """Handle the login/register button click."""
+    def _on_register_clicked(self) -> None:
+        """Handle the register button click (passwordless registration)."""
         username = self._username_edit.text().strip()
-        password = self._password_edit.text()
+        email = self._email_edit.text().strip()
 
         if not username:
             self._show_error("请输入用户名。")
             return
 
-        if not password:
-            self._show_error("请输入密码。")
+        if not email:
+            self._show_error("请输入邮箱地址。")
             return
 
         self._set_loading(True)
-        self._pending_fido2 = False
 
-        if self._is_registering:
-            email = self._email_edit.text().strip()
-            if not email:
-                self._show_error("请输入邮箱地址。")
-                self._set_loading(False)
-                return
-            self._auth_worker = AuthRegisterWorker(
-                self._services.auth_service, username, email, password, parent=self
-            )
-            self._auth_worker.completed.connect(self._on_auth_result)
-            self._auth_worker.error.connect(self._on_auth_worker_error)
-            self._auth_worker.start()
-        else:
-            self._auth_worker = AuthLoginWorker(
-                self._services.auth_service, username, password, parent=self
-            )
-            self._auth_worker.completed.connect(self._on_auth_result)
-            self._auth_worker.fido2_required.connect(self._on_fido2_required)
-            self._auth_worker.error.connect(self._on_auth_worker_error)
-            self._auth_worker.start()
+        self._auth_worker = AuthRegisterWorker(
+            self._services.auth_service, username, email, parent=self
+        )
+        self._auth_worker.completed.connect(self._on_auth_result)
+        self._auth_worker.error.connect(self._on_auth_worker_error)
+        self._auth_worker.start()
 
     @Slot(bool)
     def _on_auth_result(self, success: bool) -> None:
         """Handle auth worker completion."""
-        if not self._pending_fido2:
-            self._set_loading(False)
+        self._set_loading(False)
         if success:
             self._clear_fields()
             self.login_successful.emit()
@@ -226,6 +182,8 @@ class LoginPage(QWidget):
         """Handle auth worker error."""
         self._set_loading(False)
         self._show_error(message)
+
+    # -- DRM (OAuth2 + PKCE) login --
 
     @Slot()
     def _on_drm_login_clicked(self) -> None:
@@ -287,35 +245,20 @@ class LoginPage(QWidget):
         """Handle failed DRM login callback."""
         self._set_loading(False)
 
+    # -- FIDO2 security key login --
+
     @Slot()
     def _on_fido2_login_clicked(self) -> None:
         """Start FIDO2 security key authentication (passwordless flow)."""
         self._set_loading(True)
         self._start_fido2_auth(username=None, fido2_token=None)
 
-    @Slot(str, str)
-    def _on_fido2_required(self, fido2_token: str, username: str) -> None:
-        """Handle FIDO2 second-factor requirement after password login.
-
-        The server indicated the user has FIDO2 enabled and returned a
-        fido2_token. We must now complete the FIDO2 challenge.
-        """
-        self._pending_fido2 = True
-        InfoBar.info(
-            title="需要安全密钥",
-            content="请使用安全密钥完成登录。",
-            parent=self,
-            position=InfoBarPosition.TOP,
-            duration=4000,
-        )
-        self._start_fido2_auth(username=username, fido2_token=fido2_token)
-
     def _start_fido2_auth(
         self,
         username: str | None = None,
         fido2_token: str | None = None,
     ) -> None:
-        """Common FIDO2 authentication flow for both passwordless and 2FA modes."""
+        """FIDO2 authentication flow."""
         body: dict = {}
         if username:
             body["username"] = username
@@ -405,6 +348,8 @@ class LoginPage(QWidget):
         self._show_error(message)
         self._set_loading(False)
 
+    # -- Mode toggle --
+
     @Slot()
     def _toggle_register_mode(self) -> None:
         """Toggle between login and registration mode."""
@@ -412,20 +357,24 @@ class LoginPage(QWidget):
 
         if self._is_registering:
             self._subtitle_label.setText("创建新账户")
-            self._login_btn.setText("注册")
+            self._username_edit.setVisible(True)
             self._email_edit.setVisible(True)
-            self._toggle_label.setText("已有账户？")
-            self._toggle_link.setText("登录")
+            self._register_btn.setVisible(True)
             self._drm_login_btn.setVisible(False)
             self._fido2_btn.setVisible(False)
+            self._toggle_label.setText("已有账户？")
+            self._toggle_link.setText("登录")
         else:
-            self._subtitle_label.setText("登录你的账户")
-            self._login_btn.setText("登录")
+            self._subtitle_label.setText("选择登录方式")
+            self._username_edit.setVisible(False)
             self._email_edit.setVisible(False)
-            self._toggle_label.setText("没有账户？")
-            self._toggle_link.setText("注册")
+            self._register_btn.setVisible(False)
             self._drm_login_btn.setVisible(True)
             self._fido2_btn.setVisible(True)
+            self._toggle_label.setText("首次使用？")
+            self._toggle_link.setText("注册")
+
+    # -- Helpers --
 
     @Slot(str)
     def _on_login_error(self, message: str) -> None:
@@ -445,15 +394,13 @@ class LoginPage(QWidget):
 
     def _set_loading(self, loading: bool) -> None:
         """Enable or disable form elements during async operations."""
-        self._login_btn.setEnabled(not loading)
         self._drm_login_btn.setEnabled(not loading)
         self._fido2_btn.setEnabled(not loading)
+        self._register_btn.setEnabled(not loading)
         self._username_edit.setEnabled(not loading)
-        self._password_edit.setEnabled(not loading)
         self._email_edit.setEnabled(not loading)
 
     def _clear_fields(self) -> None:
         """Clear all input fields."""
         self._username_edit.clear()
-        self._password_edit.clear()
         self._email_edit.clear()

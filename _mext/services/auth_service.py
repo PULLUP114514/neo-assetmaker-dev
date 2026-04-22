@@ -74,6 +74,7 @@ class AuthService(QObject):
 
     auth_changed = Signal(bool)
     login_error = Signal(str)
+    # DEPRECATED: only for password+2FA flow, will be removed in a future version
     fido2_required = Signal(str, str)  # (fido2_token, username)
 
     def __init__(
@@ -120,11 +121,22 @@ class AuthService(QObject):
     def login(self, username: str, password: str) -> bool:
         """Authenticate with username and password.
 
+        .. deprecated::
+            Use DRM (OAuth2+PKCE) or FIDO2 login instead. This method will
+            be removed in a future version.
+
         Returns True on success. If the server indicates FIDO2 is required,
         emits ``fido2_required(fido2_token, username)`` and returns False
         (the caller should then start the FIDO2 flow). Emits ``login_error``
         on failure.
         """
+        import warnings
+
+        warnings.warn(
+            "login() is deprecated, use DRM or FIDO2 authentication",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         try:
             data = self._api.post(
                 "auth/login",
@@ -144,15 +156,15 @@ class AuthService(QObject):
             self.login_error.emit(str(exc.detail or exc))
             return False
 
-    def register(self, username: str, email: str, password: str) -> bool:
-        """Register a new user account.
+    def register(self, username: str, email: str) -> bool:
+        """Register a new user account (passwordless).
 
         Returns True on success, emits ``login_error`` on failure.
         """
         try:
             data = self._api.post(
                 "auth/register",
-                json={"username": username, "email": email, "password": password},
+                json={"username": username, "email": email},
             )
             self._handle_token_response(data)
             return True
