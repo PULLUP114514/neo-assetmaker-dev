@@ -1,13 +1,14 @@
 """
 常量定义 - 分辨率、支持格式等
 """
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, Any, List
 
 # ===== 应用信息 =====
 APP_NAME = "明日方舟通行证素材工具箱"
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.1.1"
 
 # ===== 基础尺寸配置 =====
 SCREEN_WIDTH = 360
@@ -29,7 +30,7 @@ RESOLUTION_SPECS: Dict[str, Dict[str, Any]] = {
         "padding_side": "right",
         "padding_amount": 24,
         "rotate_180": False,
-        "description": "360x640 (对齐后384x640, 右边+24px黑边)"
+        "description": "360x640 (对齐后384x640, 右边+24px黑边)",
     },
     "480x854": {
         "width": 480,
@@ -39,7 +40,7 @@ RESOLUTION_SPECS: Dict[str, Dict[str, Any]] = {
         "padding_side": "bottom",
         "padding_amount": 10,
         "rotate_180": False,
-        "description": "480x854 (对齐后480x864, 底部+10px黑边)"
+        "description": "480x854 (对齐后480x864, 底部+10px黑边)",
     },
     "720x1080": {
         "width": 720,
@@ -49,13 +50,13 @@ RESOLUTION_SPECS: Dict[str, Dict[str, Any]] = {
         "padding_side": None,
         "padding_amount": 0,
         "rotate_180": False,
-        "description": "720x1080 (无黑边)"
-    }
+        "description": "720x1080 (无黑边)",
+    },
 }
 
 # ===== 支持的文件格式 =====
-SUPPORTED_VIDEO_FORMATS = ('.mp4', '.avi', '.mov', '.mkv', '.webm', '.flv')
-SUPPORTED_IMAGE_FORMATS = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp')
+SUPPORTED_VIDEO_FORMATS = (".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv")
+SUPPORTED_IMAGE_FORMATS = (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp")
 
 # ===== 时间单位换算 =====
 # 项目中时间统一采用微秒（microseconds）
@@ -87,27 +88,27 @@ OPERATOR_CLASS_PRESETS = {
     "术师": "caster",
     "医疗": "medic",
     "辅助": "supporter",
-    "特种": "specialist"
+    "特种": "specialist",
 }
 
 # ===== 职业代码映射（从character_table.json中的Profession字段） =====
 PROFESSION_CODE_MAP = {
-    1: "vanguard",      # 先锋
-    2: "guard",         # 近卫
-    3: "defender",      # 重装
-    4: "sniper",        # 狙击
-    5: "caster",        # 术师
-    6: "medic",         # 医疗
-    7: "supporter",     # 辅助
-    8: "specialist",    # 特种
-    16: "supporter",    # 辅助（某些特殊辅助）
-    32: "caster",       # 术师（某些特殊术师）
-    64: "specialist",   # 特种（新约能天使等）
-    128: "defender",    # 重装（某些特殊重装）
-    256: "guard",       # 近卫（某些特殊近卫）
-    512: "vanguard",    # 先锋（某些特殊先锋）
-    1024: "medic",     # 医疗（某些特殊医疗）
-    2048: "specialist" # 特种（某些特殊特种）
+    1: "vanguard",  # 先锋
+    2: "guard",  # 近卫
+    3: "defender",  # 重装
+    4: "sniper",  # 狙击
+    5: "caster",  # 术师
+    6: "medic",  # 医疗
+    7: "supporter",  # 辅助
+    8: "specialist",  # 特种
+    16: "supporter",  # 辅助（某些特殊辅助）
+    32: "caster",  # 术师（某些特殊术师）
+    64: "specialist",  # 特种（新约能天使等）
+    128: "defender",  # 重装（某些特殊重装）
+    256: "guard",  # 近卫（某些特殊近卫）
+    512: "vanguard",  # 先锋（某些特殊先锋）
+    1024: "medic",  # 医疗（某些特殊医疗）
+    2048: "specialist",  # 特种（某些特殊特种）
 }
 
 # ===== 职业名称映射（从职业代码到中文名称） =====
@@ -119,7 +120,7 @@ PROFESSION_NAME_MAP = {
     "caster": "术师",
     "medic": "医疗",
     "supporter": "辅助",
-    "specialist": "特种"
+    "specialist": "特种",
 }
 
 
@@ -151,19 +152,21 @@ UPDATE_CHECK_INTERVAL_HOURS = 24
 
 class SourceType(Enum):
     """更新源类型"""
-    GITHUB_API = "github_api"      # GitHub 官方 API
+
+    GITHUB_API = "github_api"  # GitHub 官方 API
     GITHUB_PROXY = "github_proxy"  # GitHub 代理镜像
 
 
 @dataclass
 class UpdateSource:
     """更新源配置"""
-    name: str                      # 源名称（用于日志和UI显示）
-    url_template: str              # URL 模板，支持 {owner}, {repo}, {direct_url} 占位符
-    source_type: SourceType        # 源类型
-    priority: int                  # 优先级（数字越小优先级越高）
-    timeout: float = 10.0          # 超时时间（秒）
-    enabled: bool = True           # 是否启用
+
+    name: str  # 源名称（用于日志和UI显示）
+    url_template: str  # URL 模板，支持 {owner}, {repo}, {direct_url} 占位符
+    source_type: SourceType  # 源类型
+    priority: int  # 优先级（数字越小优先级越高）
+    timeout: float = 10.0  # 超时时间（秒）
+    enabled: bool = True  # 是否启用
 
 
 # API 源池 - 用于检查更新（竞速策略：同时请求所有源，取最快返回）
@@ -173,21 +176,21 @@ UPDATE_API_SOURCES: List[UpdateSource] = [
         url_template="https://api.github.com/repos/{owner}/{repo}/releases/latest",
         source_type=SourceType.GITHUB_API,
         priority=1,
-        timeout=10.0
+        timeout=10.0,
     ),
     UpdateSource(
         name="ghproxy.cc",
         url_template="https://ghproxy.cc/https://api.github.com/repos/{owner}/{repo}/releases/latest",
         source_type=SourceType.GITHUB_PROXY,
         priority=2,
-        timeout=15.0
+        timeout=15.0,
     ),
     UpdateSource(
         name="gh.idayer.com",
         url_template="https://gh.idayer.com/https://api.github.com/repos/{owner}/{repo}/releases/latest",
         source_type=SourceType.GITHUB_PROXY,
         priority=3,
-        timeout=15.0
+        timeout=15.0,
     ),
 ]
 
@@ -198,13 +201,13 @@ DOWNLOAD_SOURCES: List[UpdateSource] = [
         url_template="{direct_url}",
         source_type=SourceType.GITHUB_API,
         priority=1,
-        timeout=60.0
+        timeout=60.0,
     ),
     UpdateSource(
         name="ghproxy.cc",
         url_template="https://ghproxy.cc/{direct_url}",
         source_type=SourceType.GITHUB_PROXY,
         priority=2,
-        timeout=120.0
+        timeout=120.0,
     ),
 ]

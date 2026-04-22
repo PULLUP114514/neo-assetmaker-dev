@@ -3,7 +3,7 @@
 #define MyAppName "ArknightsPassMaker"
 #define MyAppNameCN "明日方舟通行证素材工具箱"
 #ifndef MyAppVersion
-  #define MyAppVersion "2.1.0"
+  #define MyAppVersion "2.1.1"
 #endif
 #define MyAppPublisher "Rafael-ban"
 #define MyAppURL "https://github.com/rhodesepass/neo-assetmaker"
@@ -11,7 +11,7 @@
 #define MyAppIcon "resources\icons\favicon.ico"
 
 [Setup]
-AppId={A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
+AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}}
 AppName={#MyAppNameCN}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppNameCN} v{#MyAppVersion}
