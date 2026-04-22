@@ -22,7 +22,9 @@ def StartDrmApp(ssh):
     # 为  什  么  白  银  要  把  启  动  外  部  程  序  的  功  能  塞  在  s  h  e  l  l  里  🤬  🤬
     UploadFile(
         ssh,
-        os.path.join(os.getcwd(), "core", "scripts", "hostStartDrm.sh"),
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "scripts", "hostStartDrm.sh"
+        ),
         "/root/hostStartDrm.sh",
     )
     stdin, stdout, stderr = ssh.exec_command("chmod +x /root/hostStartDrm.sh")
