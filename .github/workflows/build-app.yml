@@ -161,9 +161,26 @@ jobs:
           # qfluentwidgets 等第三方库触发的 SyntaxWarning
           PYTHONWARNINGS: "ignore::SyntaxWarning"
 
+      - name: Build with cx_Freeze and Inno Setup
+        shell: pwsh
+        run: |
+          $buildArgs = @()
+          if ("${{ inputs.skip_flasher }}" -eq "true") {
+            $buildArgs += "--skip-flasher"
+          }
+          uv run --no-sync python build.py @buildArgs
+        env:
+          PYTHONWARNINGS: "ignore::SyntaxWarning"
+      
+      - name: Debug exe outputs
+        shell: pwsh
+        run: |
+          Write-Host "==== exe files in repo ===="
+          Get-ChildItem -Recurse -Filter *.exe | Select-Object FullName
+      
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ArknightsPassMaker-Build
-          path: |
-            dist/*.exe
+          path: dist/*.exe
+          if-no-files-found: error
