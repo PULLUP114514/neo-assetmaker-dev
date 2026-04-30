@@ -2,6 +2,10 @@ name: Build Application
 
 on:
   workflow_call:
+    outputs:
+      artifact_run_id:
+        description: 'Workflow run ID that uploaded the build artifact'
+        value: ${{ jobs.build.outputs.artifact_run_id }}
     inputs:
       skip_flasher:
         type: boolean
@@ -20,6 +24,8 @@ jobs:
   build:
     runs-on: windows-latest
     timeout-minutes: 90
+    outputs:
+      artifact_run_id: ${{ steps.expose-run-id.outputs.artifact_run_id }}
 
     steps:
       - name: Checkout code
@@ -185,3 +191,9 @@ jobs:
           path: |
             dist/*.exe
           if-no-files-found: error
+
+      - name: Expose artifact run ID
+        id: expose-run-id
+        shell: pwsh
+        run: |
+          "artifact_run_id=${{ github.run_id }}" >> $env:GITHUB_OUTPUT
