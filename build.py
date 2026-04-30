@@ -652,7 +652,8 @@ def main():
             print("Build completed!")
             print("=" * 50)
         else:
-            print("\nInstaller skipped")
+            print("\nInstaller creation failed")
+            sys.exit(1)
 
 
 if __name__ == "__main__":
